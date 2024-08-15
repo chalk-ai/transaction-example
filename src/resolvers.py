@@ -1,77 +1,41 @@
 import json
-from datetime import datetime, timedelta, timezone
+import textwrap
 
-# import google.generativeai as genai
-from chalk import DataFrame, online
+import google.generativeai as genai
+from chalk import DataFrame, clogging, online
 from chalk.features import Features
 
 from src.models import Transaction
 
-
-@online
-def get_transactions() -> (
-    DataFrame[
-        Transaction.id,
-        Transaction.user_id,
-        Transaction.at,
-        Transaction.amount,
-        Transaction.memo,
-    ]
-):
-    return DataFrame(
-        [
-            Transaction(
-                id=1, amount=10.0, memo="Lunch", user_id=1, at=datetime.now(tz=timezone.utc) - timedelta(days=1)
-            ),
-            Transaction(id=2, amount=20.0, memo="Dinner", user_id=1, at=datetime.now(tz=timezone.utc) - timedelta(days=2)),
-            Transaction(id=3, amount=30.0, memo="Breakfast", user_id=2, at=datetime.now(tz=timezone.utc) - timedelta(days=3)),
-            Transaction(id=4, amount=40.0, memo="Lunch", user_id=2, at=datetime.now(tz=timezone.utc) - timedelta(days=4)),
-            Transaction(id=5, amount=50.0, memo="Dinner", user_id=3, at=datetime.now(tz=timezone.utc) - timedelta(days=5)),
-            Transaction(id=6, amount=60.0, memo="Breakfast", user_id=3, at=datetime.now(tz=timezone.utc) - timedelta(days=6)),
-        ]
-    )
-
-
-# genai.configure(api_key="AIzaSyCEgFSw5mRj-POYuvhJJKhIfw76NJxaUo0")
-# model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
+model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
 
 @online
-def get_transaction_categories(
-    transactions: DataFrame[
-        Transaction.memo,
-        Transaction.id,
-    ],
-) -> DataFrame[
-    Transaction.completion,
-    Transaction.id,
+async def get_transaction_category(memo: Transaction.memo) -> Transaction.completion:
+    return model.generate_content(
+        textwrap.dedent(
+            f"""\
+        Please return JSON for classifying a financial transaction
+        using the following schema.
+        {{"category": str, "is_nsf": bool, "clean_memo": str, "is_ach": bool}}
+        All fields are required. Return EXACTLY one JSON object with NO other text.
+        Memo: {memo}"""
+        ),
+        generation_config={"response_mime_type": "application/json"},
+    ).candidates[0].content.parts[0].text
+
+
+@online
+def get_structured_outputs(completion: Transaction.completion) -> Features[
+    Transaction.category,
+    Transaction.is_nsf,
+    Transaction.is_ach,
+    Transaction.clean_memo,
 ]:
-    # response = model.generate_content(
-    #     textwrap.dedent("""\
-    #     Please return JSON with example transactions using the following schema:
-    #
-    #     {"memo": str, "amount": float, "datetime": datetime}
-    #
-    #     All fields are required. Return a list 100 of these transactions.
-    #
-    #     Important: Only return a single piece of valid JSON text.
-    #     """),
-    #     generation_config={"response_mime_type": "application/json"},
-    # )
-    # print(response)
-    # json.loads(response.candidates[0].content.parts[0].text)
-    # list(response.candidates)[0].content
-    return transactions[Transaction.id].with_column(
-        Transaction.completion,
-        ['{"category": "nice"}'] * len(transactions),
-    )
-
-
-@online
-def get_structured_outputs(
-    completion: Transaction.completion
-) -> Features[Transaction.category]:
     body = json.loads(completion)
     return Transaction(
         category=body["category"],
+        is_nsf=body["is_nsf"],
+        is_ach=body["is_ach"],
+        clean_memo=body["clean_memo"],
     )

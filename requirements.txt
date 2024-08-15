@@ -1,2 +1,2 @@
-chalkpy[runtime]
+chalkpy[runtime,postgresql]
 google-generativeai
