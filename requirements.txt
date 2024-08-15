@@ -1,0 +1,2 @@
+chalkpy[runtime]
+google-generativeai
