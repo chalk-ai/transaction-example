@@ -7,5 +7,3 @@ select
     at,
     description as memo
 from txns
-
-

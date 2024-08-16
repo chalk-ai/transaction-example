@@ -3,9 +3,10 @@ import textwrap
 
 import google.generativeai as genai
 from chalk import DataFrame, clogging, online
-from chalk.features import Features
+from chalk.features import Features, before_all
+from src.denylist import Denylist
 
-from src.models import Transaction
+from src.models import Transaction, User
 
 model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
@@ -39,3 +40,16 @@ def get_structured_outputs(completion: Transaction.completion) -> Features[
         is_ach=body["is_ach"],
         clean_memo=body["clean_memo"],
     )
+
+
+denylist = Denylist(source="gs://socure-data/denylist.csv")
+
+
+@before_all
+def init_denylist():
+    denylist.load()
+
+
+@online
+def email_in_denylist(email: User.email) -> User.denylisted:
+    return email in denylist

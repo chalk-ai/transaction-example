@@ -1,7 +1,6 @@
 import json
 from datetime import date
 
-# from openai import OpenAI
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
 
@@ -14,6 +13,7 @@ default_completion = json.dumps(
     )
 )
 
+
 @features
 class Transaction:
     id: int
@@ -23,40 +23,50 @@ class Transaction:
     # :tags: genai
     clean_memo: str
 
+    # The User.id type defines our join key implicitly
     user_id: "User.id"
     user: "User"
+
+    # The time at which the transaction was created for temporal consistency
     at: FeatureTime
 
-    # :tags: genai
     completion: str = feature(max_staleness="infinity", default=default_completion)
 
-    # :tags: genai
     category: str = "unknown"
-
-    # :tags: genai
     is_nsf: bool = False
-    # :tags: genai
     is_ach: bool = False
 
 
 @features
 class User:
+    # Features pulled from Postgres for the user
     id: int
     email: str
     name: str
     dob: date
-    # name: str
-    is_high_risk: bool = _.count_transactions["1d"] > 10
+
+    # Whether the user appears in a denylist in s3
+    denylisted: bool
+
+    # The transactions, linked by the User.id type on the Transaction.user_id field
     transactions: DataFrame[Transaction]
-    count_transactions: Windowed[int] = windowed(
+
+    # The number of payments made by the user in the last 1, 7, and 30 days
+    # Uses the category pulled from Gemini to count payments
+    count_payments: Windowed[int] = windowed(
         "1d", "7d", "30d",
         expression=_.transactions[
             _.amount,
             _.at >= _.chalk_window,
-            _.category == "Food"
+            _.category == "payment"
         ].count(),
     )
-    amount_transactions: Windowed[int] = windowed(
-        "1d", "30d",
-        expression=_.transactions[_.amount, _.at > _.chalk_window].sum(),
-    )
+
+    # amount_payments: Windowed[int] = windowed(
+    #     "1d", "7d", "30d",
+    #     expression=_.transactions[
+    #         _.amount,
+    #         _.at >= _.chalk_window,
+    #         _.category == "payment"
+    #     ].sum(),
+    # )
