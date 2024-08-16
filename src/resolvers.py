@@ -18,7 +18,9 @@ async def get_transaction_category(memo: Transaction.memo) -> Transaction.comple
             f"""\
         Please return JSON for classifying a financial transaction
         using the following schema.
+
         {{"category": str, "is_nsf": bool, "clean_memo": str, "is_ach": bool}}
+
         All fields are required. Return EXACTLY one JSON object with NO other text.
         Memo: {memo}"""
         ),
