@@ -4,6 +4,7 @@ from datetime import date
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
 
+
 default_completion = json.dumps(
     dict(
         category="unknown",
@@ -38,6 +39,40 @@ class Transaction:
 
 
 @features
+class Tradeline:
+    id: int
+    report_id: "CreditReport.id"
+
+    # The outstanding balance on the tradeline
+    balance: float
+
+    # The initial amount of the tradeline
+    amount: float
+
+    # The amount past due on the tradeline
+    amount_past_due: float
+
+    # The monthly payment amount
+    payment_amount: float
+
+
+@features
+class CreditReport:
+    id: int
+
+    # The raw JSON of the credit report
+    raw: str
+
+    tradelines: DataFrame[Tradeline]
+
+    num_tradelines: int = _.tradelines.count()
+    total_balance: float = _.tradelines[_.balance].sum()
+    total_amount: float = _.tradelines[_.amount].sum()
+    percent_past_due: float = _.tradelines[_.amount_past_due].sum() / _.total_amount
+    total_payment_amount: float = _.tradelines[_.payment_amount].sum()
+
+
+@features
 class User:
     # Features pulled from Postgres for the user
     id: int
@@ -47,6 +82,11 @@ class User:
 
     # Whether the user appears in a denylist in s3
     denylisted: bool
+
+    name_email_match_score: float
+
+    credit_report_id: CreditReport.id
+    credit_report: CreditReport
 
     # The transactions, linked by the User.id type on the Transaction.user_id field
     transactions: DataFrame[Transaction]
