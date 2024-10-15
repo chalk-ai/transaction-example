@@ -85,28 +85,24 @@ class User:
 
     name_email_match_score: float
 
+    emailage_response: str
+    email_age_days: int
+    domain_age_days: int
+
     credit_report_id: CreditReport.id
     credit_report: CreditReport
 
     # The transactions, linked by the User.id type on the Transaction.user_id field
     transactions: DataFrame[Transaction]
 
-    # The number of payments made by the user in the last 1, 7, and 30 days
+    # The number of food and drink purchases made by the user in the
+    # last 1, 7, and 30 days.
     # Uses the category pulled from Gemini to count payments
-    count_payments: Windowed[int] = windowed(
+    count_food_purchases: Windowed[int] = windowed(
         "1d", "7d", "30d",
         expression=_.transactions[
             _.amount,
             _.at >= _.chalk_window,
-            _.category == "payment"
+            _.category == "Food & Drink",
         ].count(),
     )
-
-    # amount_payments: Windowed[int] = windowed(
-    #     "1d", "7d", "30d",
-    #     expression=_.transactions[
-    #         _.amount,
-    #         _.at >= _.chalk_window,
-    #         _.category == "payment"
-    #     ].sum(),
-    # )

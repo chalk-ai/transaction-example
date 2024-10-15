@@ -17,7 +17,7 @@ class EmailAgeClient:
             {
                 "domainAge": 10200,
                 "domainname": domainname,
-                "emailAge": random.randint(800, 10000),
+                "emailAge": random.randint(365, 5_000),
             }
         )
 

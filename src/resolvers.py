@@ -5,6 +5,7 @@ import google.generativeai as genai
 from chalk import DataFrame, clogging, online
 from chalk.features import Features, before_all
 from src.denylist import Denylist
+from src.emailage.client import emailage_client
 from src.experian import fetch_credit_report
 
 from src.models import Transaction, User, CreditReport, Tradeline
@@ -65,6 +66,22 @@ def get_name_email_match(
 ) -> User.name_email_match_score:
     """Returns the Jaccard similarity between the name and email."""
     return len(set(name) & set(email)) / len(set(name) | set(email))
+
+
+@online
+def get_email_age(email: User.email) -> User.emailage_response:
+    return emailage_client.get_email_score(email)
+
+
+@online
+def get_emailage_features(
+    emailage_response: User.emailage_response,
+) -> Features[User.email_age_days, User.domain_age_days]:
+    parsed = json.loads(emailage_response)
+    return User(
+        email_age_days=parsed["emailAge"],
+        domain_age_days=parsed["domainAge"],
+    )
 
 
 @online
