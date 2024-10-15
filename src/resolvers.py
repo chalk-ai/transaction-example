@@ -6,7 +6,7 @@ from chalk import DataFrame, clogging, online
 from chalk.features import Features, before_all
 from src.denylist import Denylist
 from src.emailage.client import emailage_client
-from src.experian import fetch_credit_report
+from src.experian import ExperianClient
 
 from src.models import Transaction, User, CreditReport, Tradeline
 
@@ -31,12 +31,13 @@ async def get_transaction_category(memo: Transaction.memo) -> Transaction.comple
 
 
 @online
-def get_structured_outputs(completion: Transaction.completion) -> Features[
+def parse_genai_transaction_info(completion: Transaction.completion) -> Features[
     Transaction.category,
     Transaction.is_nsf,
     Transaction.is_ach,
     Transaction.clean_memo,
 ]:
+    """Parse out the structured outputs from the genai completion."""
     body = json.loads(completion)
     return Transaction(
         category=body["category"],
@@ -56,6 +57,7 @@ def init_denylist():
 
 @online
 def email_in_denylist(email: User.email) -> User.denylisted:
+    """Check if the user's email is in a fixed set of denylisted emails."""
     return email in denylist
 
 
@@ -70,6 +72,7 @@ def get_name_email_match(
 
 @online
 def get_email_age(email: User.email) -> User.emailage_response:
+    """Get the email age and domain age from the Emailage API."""
     return emailage_client.get_email_score(email)
 
 
@@ -77,6 +80,7 @@ def get_email_age(email: User.email) -> User.emailage_response:
 def get_emailage_features(
     emailage_response: User.emailage_response,
 ) -> Features[User.email_age_days, User.domain_age_days]:
+    """Parse the emailage response into the email and domain age."""
     parsed = json.loads(emailage_response)
     return User(
         email_age_days=parsed["emailAge"],
@@ -84,12 +88,16 @@ def get_emailage_features(
     )
 
 
+experian_client = ExperianClient("EXPERIAN_API_KEY")
+
+
 @online
 def get_credit_report(
     name: User.name,
     dob: User.dob,
 ) -> Features[User.credit_report.raw, User.credit_report.id]:
-    return fetch_credit_report(name, dob)
+    """Fetch the credit report from Experian."""
+    return experian_client.fetch_credit_report(name, dob)
 
 
 @online
@@ -102,6 +110,7 @@ def get_tradelines(
     Tradeline.amount_past_due,
     Tradeline.payment_amount,
 ]:
+    """Parse the raw credit report into tradelines."""
     parsed = json.loads(raw)
     return CreditReport(
         tradelines=[
