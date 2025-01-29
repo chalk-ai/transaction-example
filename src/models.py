@@ -1,9 +1,9 @@
 import json
 from datetime import date
 
+import chalk.functions as F
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
-
 
 default_completion = json.dumps(
     dict(
@@ -27,6 +27,8 @@ class Transaction:
     # The User.id type defines our join key implicitly
     user_id: "User.id"
     user: "User"
+
+    name_memo_sim: float = F.levenshtein_distance(_.user.name, _.clean_memo)
 
     # The time at which the transaction was created for temporal consistency
     at: FeatureTime
@@ -99,9 +101,10 @@ class User:
     # last 1, 7, and 30 days.
     # Uses the category pulled from Gemini to count payments
     count_food_purchases: Windowed[int] = windowed(
-        "1d", "7d", "30d",
+        "1d",
+        "7d",
+        "30d",
         expression=_.transactions[
-            _.amount,
             _.at >= _.chalk_window,
             _.category == "Food & Drink",
         ].count(),
