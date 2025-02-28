@@ -2,22 +2,23 @@ import json
 import textwrap
 
 import google.generativeai as genai
-from chalk import DataFrame, clogging, online
+from chalk import online
 from chalk.features import Features, before_all
+
 from src.denylist import Denylist
 from src.emailage.client import emailage_client
 from src.experian import ExperianClient
-
-from src.models import Transaction, User, CreditReport, Tradeline
+from src.models import CreditReport, Tradeline, Transaction, User
 
 model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
 
 @online
 async def get_transaction_category(memo: Transaction.memo) -> Transaction.completion:
-    return model.generate_content(
-        textwrap.dedent(
-            f"""\
+    return (
+        model.generate_content(
+            textwrap.dedent(
+                f"""\
         Please return JSON for classifying a financial transaction
         using the following schema.
 
@@ -25,13 +26,19 @@ async def get_transaction_category(memo: Transaction.memo) -> Transaction.comple
 
         All fields are required. Return EXACTLY one JSON object with NO other text.
         Memo: {memo}"""
-        ),
-        generation_config={"response_mime_type": "application/json"},
-    ).candidates[0].content.parts[0].text
+            ),
+            generation_config={"response_mime_type": "application/json"},
+        )
+        .candidates[0]
+        .content.parts[0]
+        .text
+    )
 
 
 @online
-def parse_genai_transaction_info(completion: Transaction.completion) -> Features[
+def parse_genai_transaction_info(
+    completion: Transaction.completion,
+) -> Features[
     Transaction.category,
     Transaction.is_nsf,
     Transaction.is_ach,
@@ -59,6 +66,14 @@ def init_denylist():
 def email_in_denylist(email: User.email) -> User.denylisted:
     """Check if the user's email is in a fixed set of denylisted emails."""
     return email in denylist
+
+
+@online
+def get_email_username(email: User.email) -> User.email_username:
+    username = email.split("@")[0]
+    if "gmail.com" in email:
+        username = username.split("+")[0].replace(".", "")
+    return username.lower()
 
 
 @online

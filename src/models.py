@@ -82,6 +82,8 @@ class User:
     name: str
     dob: date
 
+    email_username: str
+
     # Whether the user appears in a denylist in s3
     denylisted: bool
 
