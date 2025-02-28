@@ -63,17 +63,20 @@ def init_denylist():
 
 
 @online
-def email_in_denylist(email: User.email) -> User.denylisted:
-    """Check if the user's email is in a fixed set of denylisted emails."""
-    return email in denylist
-
-
-@online
 def get_email_username(email: User.email) -> User.email_username:
     username = email.split("@")[0]
     if "gmail.com" in email:
         username = username.split("+")[0].replace(".", "")
     return username.lower()
+
+
+@online
+def email_in_denylist(
+    email: User.email,
+    username: User.email_username,
+) -> User.denylisted:
+    """Check if the user's email is in a fixed set of denylisted emails."""
+    return email in denylist or username in denylist
 
 
 @online
