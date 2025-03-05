@@ -2,7 +2,7 @@ import json
 import textwrap
 
 import google.generativeai as genai
-from chalk import chalk_logger, online
+from chalk import online
 from chalk.features import Features, before_all
 
 from src.denylist import Denylist
@@ -15,7 +15,6 @@ model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
 @online
 def get_domain_name(email: User.email) -> User.domain_name:
-    chalk_logger.warn("We're using the deprecated get_domain_name resolver! We should stop using this ASAP")
     return email.split("@")[1]
 
 
