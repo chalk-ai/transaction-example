@@ -14,11 +14,6 @@ model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
 
 @online
-def get_domain_name(email: User.email) -> User.domain_name:
-    return email.split("@")[1]
-
-
-@online
 async def get_transaction_category(memo: Transaction.memo) -> Transaction.completion:
     return (
         model.generate_content(
@@ -68,6 +63,11 @@ def init_denylist():
 
 
 @online
+def get_domain_name(email: User.email) -> User.domain_name:
+    return email.split("@")[-1]
+
+
+@online
 def get_email_username(email: User.email) -> User.email_username:
     username = email.split("@")[0]
     if "gmail.com" in email:
@@ -82,15 +82,6 @@ def email_in_denylist(
 ) -> User.denylisted:
     """Check if the user's email is in a fixed set of denylisted emails."""
     return email in denylist or username in denylist
-
-
-@online
-def get_name_email_match(
-    name: User.name,
-    email: User.email,
-) -> User.name_email_match_score:
-    """Returns the Jaccard similarity between the name and email."""
-    return len(set(name) & set(email)) / len(set(name) | set(email))
 
 
 @online

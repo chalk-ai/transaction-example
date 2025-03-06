@@ -88,7 +88,7 @@ class User:
     # Whether the user appears in a denylist in s3
     denylisted: bool
 
-    name_email_match_score: float
+    name_email_match_score: float = F.partial_ratio(_.name, _.email_username)
 
     emailage_response: str
     email_age_days: int
@@ -100,15 +100,17 @@ class User:
     # The transactions, linked by the User.id type on the Transaction.user_id field
     transactions: DataFrame[Transaction]
 
-    # The number of food and drink purchases made by the user in the
+    total_spend: float = _.transactions[_.amount].sum()
+
+    # The number of transfers made by the user in the
     # last 1, 7, and 30 days.
     # Uses the category pulled from Gemini to count payments
-    count_food_purchases: Windowed[int] = windowed(
+    count_transfers: Windowed[int] = windowed(
         "1d",
         "7d",
         "30d",
         expression=_.transactions[
             _.at >= _.chalk_window,
-            _.category == "Food & Drink",
+            _.category == "Transfer",
         ].count(),
     )
