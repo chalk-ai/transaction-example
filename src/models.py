@@ -28,7 +28,7 @@ class Transaction:
     user_id: "User.id"
     user: "User"
 
-    name_memo_sim: float = F.contains(_.user.name, _.clean_memo)
+    name_memo_sim: float = F.jaccard_similarity(_.user.name, _.clean_memo)
 
     # The time at which the transaction was created for temporal consistency
     at: FeatureTime
