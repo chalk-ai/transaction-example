@@ -79,16 +79,19 @@ class User:
     # Features pulled from Postgres for the user
     id: int
     email: str
-    domain_name: str
     name: str
     dob: date
 
     email_username: str
+    domain_name: str
 
     # Whether the user appears in a denylist in s3
     denylisted: bool
 
-    name_email_match_score: float = F.partial_ratio(_.name, _.email_username)
+    name_email_match_score: float = F.partial_ratio(
+        _.name,
+        _.email_username,
+    )
 
     emailage_response: str
     email_age_days: int
