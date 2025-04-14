@@ -1,9 +1,11 @@
 import json
 from datetime import date
 
+import chalk.prompts as P
 import chalk.functions as F
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
+from .prompts import USER_PROMPT, SYSTEM_PROMPT
 
 default_completion = json.dumps(
     dict(
@@ -117,3 +119,20 @@ class User:
             _.category == "Transfer",
         ].count(),
     )
+
+    llm: P.PromptResponse = P.completion(
+        model="gemini-2.0-flash",
+        max_tokens=8191,
+        messages=[
+            P.message(
+                role="system",
+                content=SYSTEM_PROMPT,
+            ),
+            P.message(
+                role="user",
+                content=F.jinja(USER_PROMPT),
+            ),
+        ],
+        # output_structure=StructuredOutput, # can pass in a pydantic base model for structured output
+    )
+    llm_response: str = llm.response
