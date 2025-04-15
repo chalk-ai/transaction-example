@@ -136,4 +136,4 @@ class User:
         ],
         # output_structure=StructuredOutput, # can pass in a pydantic base model for structured output
     )
-    llm_response: str = feature(expression=_.llm.response, max_staleness='infinity')
+    llm_response: str = feature(expression=_.llm.response, max_staleness="infinity")
