@@ -1,11 +1,12 @@
 import json
 from datetime import date
 
-import chalk.prompts as P
 import chalk.functions as F
+import chalk.prompts as P
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
-from .prompts import USER_PROMPT, SYSTEM_PROMPT
+
+from .prompts import SYSTEM_PROMPT, USER_PROMPT
 
 default_completion = json.dumps(
     dict(
@@ -135,4 +136,4 @@ class User:
         ],
         # output_structure=StructuredOutput, # can pass in a pydantic base model for structured output
     )
-    llm_response: str = llm.response
+    llm_response: str = feature(expression=_.llm.response, max_staleness='infinity')
