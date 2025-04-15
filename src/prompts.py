@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 SYSTEM_PROMPT: str = """ 
 You are a financial risk analysis assistant. Your role is to evaluate potential fraud and assess financial stability based on structured user and credit report inputs. Provide clear, structured insights that are directly supported by the data.
 
@@ -67,22 +69,10 @@ The evaluation should generate a clear, structured output as follows:
 Ensure the analysis is data-driven, logical, and follows financial risk industry standards.
 """
 
-from pydantic import BaseModel, Field
-
 
 class StructuredOutput(BaseModel):
-    fraud_score: float = Field(
-        description="A score between 0.0 and 1.0 that represents the likelihood of fraudulent activity, based on the analysis of input data."
-    )
-    fraud_risk_explanation: str = Field(
-        description="A concise summary explaining how the fraud score was derived, emphasizing key risk factors."
-    )
-    credit_health: str = Field(
-        description="Categorization of the user's credit health as 'Good', 'Average', or 'Poor' based on analyzed data."
-    )
-    financial_stability_explanation: str = Field(
-        description="Detailed reasoning and justification for the assigned credit health category, outlining notable findings in repayment and liability patterns."
-    )
-    overall_recommendation: str = Field(
-        description="A final recommendation for further actions or investigations, based on the combined fraud and financial stability assessments."
-    )
+    fraud_score: float
+    fraud_risk_explanation: str
+    credit_health: str
+    financial_stability_explanation: str
+    overall_recommendation: str
