@@ -6,7 +6,7 @@ import chalk.prompts as P
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
 
-from .prompts import SYSTEM_PROMPT, USER_PROMPT
+from .prompts import SYSTEM_PROMPT, USER_PROMPT, StructuredOutput
 from .groq import GROQ_MODEL, GROQ_MODEL_PROVIDER, GROQ_API_KEY, GROQ_BASE_URL
 
 default_completion = json.dumps(
@@ -140,7 +140,27 @@ class User:
                 content=F.jinja(USER_PROMPT),
             ),
         ],
-        # output_structure=StructuredOutput, # can pass in a pydantic base model for structured output
+        output_structure=StructuredOutput,  # can pass in a pydantic base model for structured output
     )
     llm_response: str = _.llm.response
-
+    # Define variables based on the structured output
+    llm_fraud_score: float = F.json_value(
+        _.llm.response,
+        "$.fraud_score",  # Path to fraud score in LLM's structured response
+    )
+    llm_fraud_risk_explanation: str = F.json_value(
+        _.llm.response,
+        "$.fraud_risk_explanation",
+    )
+    llm_credit_health: str = F.json_value(
+        _.llm.response,
+        "$.credit_health",  # Path to credit health categorization in LLM's structured response
+    )
+    llm_financial_stability_explanation: str = F.json_value(
+        _.llm.response,
+        "$.financial_stability_explanation",  # Path to financial stability explanation in LLM's structured response
+    )
+    llm_overall_recommendation: str = F.json_value(
+        _.llm.response,
+        "$.overall_recommendation",  # Path to overall recommendation in LLM's structured response
+    )
