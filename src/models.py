@@ -7,6 +7,7 @@ from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
 
 from .prompts import SYSTEM_PROMPT, USER_PROMPT
+from .groq import GROQ_MODEL, GROQ_MODEL_PROVIDER, GROQ_API_KEY, GROQ_BASE_URL
 
 default_completion = json.dumps(
     dict(
@@ -122,8 +123,13 @@ class User:
     )
 
     llm: P.PromptResponse = P.completion(
-        model="gemini-2.0-flash",
-        max_tokens=8191,
+        api_key=GROQ_API_KEY,
+        model_provider=GROQ_MODEL_PROVIDER,
+        model=GROQ_MODEL,
+        base_url=GROQ_BASE_URL,
+        max_tokens=8192,
+        temperature=0.1,
+        top_p=0.1,
         messages=[
             P.message(
                 role="system",
@@ -136,4 +142,5 @@ class User:
         ],
         # output_structure=StructuredOutput, # can pass in a pydantic base model for structured output
     )
-    llm_response: str = feature(expression=_.llm.response, max_staleness="infinity")
+    llm_response: str = _.llm.response
+
