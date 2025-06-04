@@ -6,8 +6,8 @@ import chalk.prompts as P
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
 
+from .groq import GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL, GROQ_MODEL_PROVIDER
 from .prompts import SYSTEM_PROMPT, USER_PROMPT
-from .groq import GROQ_MODEL, GROQ_MODEL_PROVIDER, GROQ_API_KEY, GROQ_BASE_URL
 
 default_completion = json.dumps(
     dict(
@@ -120,6 +120,7 @@ class User:
             _.at >= _.chalk_window,
             _.category == "Transfer",
         ].count(),
+        materialization={"bucket_duration": "1h"},
     )
 
     llm: P.PromptResponse = P.completion(
@@ -143,4 +144,3 @@ class User:
         # output_structure=StructuredOutput, # can pass in a pydantic base model for structured output
     )
     llm_response: str = _.llm.response
-
