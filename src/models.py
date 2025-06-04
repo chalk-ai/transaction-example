@@ -120,7 +120,7 @@ class User:
             _.at >= _.chalk_window,
             _.category == "Transfer",
         ].count(),
-        materialization={"bucket_duration": "1h"},
+        # materialization={"bucket_duration": "1h"},
     )
 
     llm: P.PromptResponse = P.completion(
