@@ -1,13 +1,16 @@
 import json
 from datetime import date
+from enum import Enum
 
 import chalk.functions as F
 import chalk.prompts as P
+
+
 from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
 from chalk.features import features
 
 from .groq import GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL, GROQ_MODEL_PROVIDER
-from .prompts import SYSTEM_PROMPT, USER_PROMPT
+from .prompts import SYSTEM_PROMPT, USER_PROMPT, StructuredOutput
 
 default_completion = json.dumps(
     dict(
@@ -78,6 +81,12 @@ class CreditReport:
     total_payment_amount: float = _.tradelines[_.payment_amount].sum()
 
 
+class FinancialStability(str, Enum):
+    GOOD = "good"
+    AVERAGE = "average"
+    POOR = "poor"
+
+
 @features
 class User:
     # Features pulled from Postgres for the user
@@ -123,24 +132,40 @@ class User:
         # materialization={"bucket_duration": "1h"},
     )
 
-    llm: P.PromptResponse = P.completion(
-        api_key=GROQ_API_KEY,
-        model_provider=GROQ_MODEL_PROVIDER,
-        model=GROQ_MODEL,
-        base_url=GROQ_BASE_URL,
-        max_tokens=8192,
-        temperature=0.1,
-        top_p=0.1,
-        messages=[
-            P.message(
-                role="system",
-                content=SYSTEM_PROMPT,
-            ),
-            P.message(
-                role="user",
-                content=F.jinja(USER_PROMPT),
-            ),
-        ],
-        # output_structure=StructuredOutput, # can pass in a pydantic base model for structured output
+    llm: P.PromptResponse = feature(
+        max_staleness="infinity",
+        expression=P.completion(
+            api_key=GROQ_API_KEY,
+            model_provider=GROQ_MODEL_PROVIDER,
+            model=GROQ_MODEL,
+            base_url=GROQ_BASE_URL,
+            max_tokens=8192,
+            temperature=0.1,
+            top_p=0.1,
+            messages=[
+                P.message(
+                    role="system",
+                    content=SYSTEM_PROMPT,
+                ),
+                P.message(
+                    role="user",
+                    content=F.jinja(USER_PROMPT),
+                ),
+            ],
+            output_structure=StructuredOutput,  # can pass in a pydantic base model for structured output
+        ),
     )
-    llm_response: str = _.llm.response
+    llm_financial_stability: FinancialStability = feature(
+        max_staleness="infinity",
+        expression=F.json_value(
+            _.llm.response,
+            "$.financial_stability",
+        ),
+    )
+    llm_requires_manual_review: bool = feature(
+        max_staleness="infinity",
+        expression=F.json_value(
+            _.llm.response,
+            "$.requires_manual_review",
+        ),
+    )
