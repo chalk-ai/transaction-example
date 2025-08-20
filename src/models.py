@@ -141,7 +141,8 @@ class User:
                 P.message(role="system", content=SYSTEM_PROMPT),
                 P.message(
                     role="user",
-                    content=F.jinja("""
+                    content=F.jinja(
+                        """
 Analyze the financial stability of a user based on the following inputs:
 
 {{User.dob}}: date of birth
@@ -163,7 +164,8 @@ The financial stability evaluation should:
    - Compute {{User.credit_report.percent_past_due}} and categorize the user's credit health as Good, Average, or Poor.
    - Calculate their total financial obligations ({{User.credit_report.total_balance}} and {{User.credit_report.total_amount}}) to understand the scale of their liabilities.
    - Analyze the user's payment history ({{User.credit_report.total_payment_amount}}) to determine their repayment behavior.
-"""),
+"""
+                    ),
                 ),
             ],
             api_key=GROQ_API_KEY,
