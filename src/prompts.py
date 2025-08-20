@@ -27,3 +27,27 @@ Analysis Guidelines:
 
 Be objective and data-driven. If information is missing, state your assumptions.
 """
+
+USER_PROMPT: str = """
+Analyze the financial stability of a user based on the following inputs:
+
+{{User.dob}}: date of birth
+{{User.denylisted}}: denylisted status
+{{User.name_email_match_score}}: name-email match score
+{{User.emailage_response}}: email age response
+{{User.email_age_days}}: number of days since the email was created
+{{User.domain_age_days}}: number of days since the domain was registered
+{{User.credit_report_id}}: credit report ID
+A detailed credit report including:
+    - {{User.credit_report.num_tradelines}}: the number of tradelines
+    - {{User.credit_report.total_balance}}: the total balance across all tradelines
+    - {{User.credit_report.total_amount}}: the total amount across all tradelines
+    - {{User.credit_report.percent_past_due}}: the percentage of overdue payments
+    - {{User.credit_report.total_payment_amount}}: the total payment amount across all tradelines
+
+The financial stability evaluation should:
+1. Assess the financial stability of the user by analyzing their credit report data:
+   - Compute {{User.credit_report.percent_past_due}} and categorize the user's credit health as Good, Average, or Poor.
+   - Calculate their total financial obligations ({{User.credit_report.total_balance}} and {{User.credit_report.total_amount}}) to understand the scale of their liabilities.
+   - Analyze the user's payment history ({{User.credit_report.total_payment_amount}}) to determine their repayment behavior.
+"""
