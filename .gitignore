@@ -20,3 +20,6 @@ idea
 # Git artifacts
 .git
 .github
+
+dbt_cloud.yml
+dbt_project.yml
