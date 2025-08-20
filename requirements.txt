@@ -1,2 +1,3 @@
 chalkpy[runtime,postgresql]
 google-generativeai
+lancedb~=0.24.3
