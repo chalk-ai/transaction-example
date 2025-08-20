@@ -4,11 +4,22 @@ from enum import Enum
 
 import chalk.functions as F
 import chalk.prompts as P
-from chalk import DataFrame, FeatureTime, Windowed, _, feature, windowed
+from chalk.features import Vector, embed
+from chalk import (
+    DataFrame,
+    FeatureTime,
+    Windowed,
+    _,
+    feature,
+    windowed,
+    Primary,
+    has_many,
+)
 from chalk.features import features
 
 from .groq import GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL, GROQ_MODEL_PROVIDER
 from .prompts import SYSTEM_PROMPT, StructuredOutput, USER_PROMPT
+from .transaction_search_result import TransactionSearchResult
 
 default_completion = json.dumps(
     dict(
@@ -47,6 +58,21 @@ class Transaction:
     category: str = "unknown"
     is_nsf: bool = False
     is_ach: bool = False
+
+
+@features
+class TransactionSearch:
+    q: Primary[str]
+    limit: int = 10
+    vector: Vector[768] = embed(
+        input=lambda: TransactionSearch.q,
+        provider="vertexai",  # openai
+        model="text-embedding-005",  # text-embedding-3-small
+    )
+
+    results: DataFrame[TransactionSearchResult] = has_many(
+        lambda: TransactionSearch.q == TransactionSearchResult.query
+    )
 
 
 @features
