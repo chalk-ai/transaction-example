@@ -62,7 +62,7 @@ def get_search_results(
         .select(
             columns=[
                 "id",
-                "details",
+                "body",
             ],
         )
         .limit(
@@ -72,10 +72,10 @@ def get_search_results(
     )
     transaction_details: list[TransactionSearchResult] = [
         TransactionSearchResult(
-            id=result["id"],
-            query=query,
-            distance=result["_distance"],
-            details=result["details"],
+            id=int(result["id"]),
+            query=str(query),
+            distance=float(result["_distance"]),
+            body=str(result["body"]),
             query_type="VECTOR",
         )
         for result in results

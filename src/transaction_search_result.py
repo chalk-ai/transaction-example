@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 from chalk.features import (
     Primary,
     features,
@@ -13,4 +11,4 @@ class TransactionSearchResult:
     query: str
     distance: float | None
     query_type: str
-    details: str
+    body: str

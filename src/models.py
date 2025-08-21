@@ -63,7 +63,7 @@ class Transaction:
 @features
 class TransactionSearch:
     q: Primary[str]
-    limit: int = 10
+    limit: int = 25
     vector: Vector[768] = embed(
         input=lambda: TransactionSearch.q,
         provider="vertexai",  # openai
