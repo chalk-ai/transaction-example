@@ -29,3 +29,6 @@ idea
 
 streaming.py
 transactions_offline.chalk.sql
+chalk_test.go
+go.mod
+go.sum
