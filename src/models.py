@@ -149,13 +149,14 @@ class User:
     # The number of transfers made by the user in the
     # last 1, 7, and 30 days.
     # Uses the category pulled from Gemini to count payments
-    count_transfers: Windowed[int] = windowed(
+    count_withdrawals: Windowed[int] = windowed(
         "1d",
         "7d",
         "30d",
+        "365d",
         expression=_.transactions[
             _.at >= _.chalk_window,
-            _.category == "Transfer",
+            _.amount < 0,
         ].count(),
         # materialization={"bucket_duration": "1h"},
     )
