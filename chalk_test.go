@@ -19,6 +19,12 @@ func TestChalkClient(t *testing.T) {
 		chalk.OnlineQueryParams{}.
 			WithInput("user.id", []int{1}).
 			WithOutputExprs(
+				expr.FunctionCall(
+					"jaccard_similarity",
+					expr.FunctionCall("lower", expr.Col("name")),
+					expr.FunctionCall("lower", expr.Col("email")),
+				).
+					As("user.name_email_sim"),
 				expr.DataFrame("transactions").
 					Filter(expr.Col("amount").Gt(expr.Float(0.))).
 					Agg("count").
