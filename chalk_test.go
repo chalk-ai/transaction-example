@@ -18,6 +18,8 @@ func TestChalkClient(t *testing.T) {
 		t.Context(),
 		chalk.OnlineQueryParams{}.
 			WithInput("user.id", []int{1}).
+			WithOutputs("user.name").
+			WithOutputs("user.email").
 			WithOutputExprs(
 				expr.FunctionCall(
 					"jaccard_similarity",
