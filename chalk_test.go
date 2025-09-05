@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/chalk-ai/chalk-go/expr"
 	"testing"
+
+	"github.com/chalk-ai/chalk-go/expr"
 
 	"github.com/chalk-ai/chalk-go"
 )
@@ -12,18 +13,16 @@ func TestChalkClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Chalk client: %v", err)
 	}
+
 	result, err := client.OnlineQueryBulk(
 		t.Context(),
 		chalk.OnlineQueryParams{}.
 			WithInput("user.id", []int{1}).
-			WithOutputs("user.id").
 			WithOutputExprs(
-				expr.FunctionCall(
-					"jaccard_similarity",
-					expr.Col("_").Attr("name"),
-					expr.Col("_").Attr("email"),
-				).
-					As("name_email_sim"),
+				expr.DataFrame("transactions").
+					Filter(expr.Col("amount").Gt(expr.Float(0.))).
+					Agg("count").
+					As("user.positive_transaction_count"),
 			),
 	)
 	if err != nil {
