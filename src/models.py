@@ -14,6 +14,7 @@ from chalk import (
     windowed,
     Primary,
     has_many,
+    Validation,
 )
 from chalk.features import features
 
@@ -48,6 +49,15 @@ class Transaction:
     name_memo_sim: float = F.jaccard_similarity(
         _.user.name,
         _.clean_memo,
+    )
+
+    # Features can be vectors, and they can be computed
+    # via services or hosted models
+    vector: Vector[768] = embed(
+        input=lambda: Transaction.memo,
+        provider="vertexai",
+        model="text-embedding-005",
+        max_staleness="infinity"
     )
 
     # The time at which the transaction was created for temporal consistency
@@ -99,6 +109,15 @@ class CreditReport:
 
     # The raw JSON of the credit report
     raw: str
+
+    score: int = feature(
+        min=300,
+        max=850,
+        strict=True,
+        default=300,
+        deprecated=True,
+        # validations=[...],
+    )
 
     tradelines: DataFrame[Tradeline]
 
