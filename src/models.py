@@ -57,7 +57,7 @@ class Transaction:
         input=lambda: Transaction.memo,
         provider="vertexai",
         model="text-embedding-005",
-        max_staleness="infinity"
+        max_staleness="infinity",
     )
 
     # The time at which the transaction was created for temporal consistency
