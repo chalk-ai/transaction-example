@@ -169,14 +169,7 @@ class CreditReport:
     # The raw JSON of the credit report
     raw: str
 
-    score: int = feature(
-        min=300,
-        max=850,
-        strict=True,
-        default=300,
-        deprecated=True,
-        # validations=[...],
-    )
+    score: int = feature(min=300, max=850, strict=True)
 
     payments: DataFrame[Payment]
 
