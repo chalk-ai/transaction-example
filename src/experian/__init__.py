@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from chalk import DataFrame
 from src.models import User
@@ -23,7 +23,9 @@ class ExperianClient:
                             "Tradelines": [
                                 {
                                     "Id": 1,
-                                    "OpenDate": "2021-01-01",
+                                    "OpenedAt": (datetime.now() - timedelta(days=80)).isoformat(),
+                                    "ClosedAt": None,
+                                    "Kind": "card",
                                     "Balance": 7203.40,
                                     "Amount": 10000.0,
                                     "AmountPastDue": 0.0,
@@ -31,7 +33,9 @@ class ExperianClient:
                                 },
                                 {
                                     "Id": 2,
-                                    "OpenDate": "2021-01-01",
+                                    "OpenedAt": (datetime.now() - timedelta(days=8)).isoformat(),
+                                    "ClosedAt": None,
+                                    "Kind": "auto",
                                     "Balance": 7203.40,
                                     "Amount": 10000.0,
                                     "AmountPastDue": 0.0,

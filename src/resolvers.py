@@ -1,5 +1,6 @@
 import json
 import textwrap
+from datetime import datetime
 
 import google.generativeai as genai
 from chalk import online
@@ -8,7 +9,7 @@ from chalk.features import Features, before_all
 from src.denylist import Denylist
 from src.emailage.client import emailage_client
 from src.experian import ExperianClient
-from src.models import CreditReport, Tradeline, Transaction, User
+from src.models import CreditReport, Tradeline, TradelineKind, Transaction, User
 
 model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
@@ -123,6 +124,9 @@ def get_tradelines(
     Tradeline.amount,
     Tradeline.amount_past_due,
     Tradeline.payment_amount,
+    Tradeline.opened_at,
+    Tradeline.closed_at,
+    Tradeline.kind,
 ]:
     """Parse the raw credit report into tradelines."""
     parsed = json.loads(raw)
@@ -134,6 +138,9 @@ def get_tradelines(
                 amount=tradeline["Amount"],
                 amount_past_due=tradeline["AmountPastDue"],
                 payment_amount=tradeline["PaymentAmount"],
+                opened_at=datetime.fromisoformat(tradeline["OpenedAt"]),
+                closed_at=datetime.fromisoformat(tradeline["ClosedAt"]) if tradeline.get("ClosedAt") else None,
+                kind=TradelineKind(tradeline["Kind"]),
             )
             for tradeline in parsed["Tradelines"]
         ]

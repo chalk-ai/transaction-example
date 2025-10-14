@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 import chalk.functions as F
@@ -85,10 +85,26 @@ class TransactionSearch:
     )
 
 
+
+class TradelineKind(str, Enum):
+    card = "card"
+    auto = "auto"
+    mortgage = "mortgage"
+    student = "student"
+    personal = "personal"
+    other = "other"
+
+
 @features
 class Tradeline:
     id: int
+
     report_id: "CreditReport.id"
+
+    opened_at: datetime
+    closed_at: datetime | None
+
+    kind: TradelineKind
 
     # The outstanding balance on the tradeline
     balance: float
@@ -96,11 +112,54 @@ class Tradeline:
     # The initial amount of the tradeline
     amount: float
 
+    utilization_ratio: float = _.balance / _.amount
+
     # The amount past due on the tradeline
     amount_past_due: float
 
     # The monthly payment amount
     payment_amount: float
+
+    payments: "DataFrame[Payment]"
+
+
+class PaymentStatus(str, Enum):
+    completed = "completed"
+    pending = "pending"
+    late = "late"
+    failed = "failed"
+
+
+class PaymentMethod(str, Enum):
+    auto_pay = "auto_pay"
+    manual = "manual"
+    bank_transfer = "bank_transfer"
+    credit_card = "credit_card"
+    check = "check"
+
+
+@features
+class Payment:
+    id: Primary[int]
+
+    user_id: "User.id"
+    user: "User"
+
+    credit_report_id: "CreditReport.id"
+
+    tradeline_id: "Tradeline.id"
+    tradeline: "Tradeline"
+
+    amount: float
+    payment_date: datetime
+    due_date: datetime | None
+    payment_status: PaymentStatus
+    payment_method: PaymentMethod | None
+
+    created_at: datetime
+
+    # Whether the payment was late
+    is_late: bool = _.payment_status == "late"
 
 
 @features
@@ -117,6 +176,19 @@ class CreditReport:
         default=300,
         deprecated=True,
         # validations=[...],
+    )
+
+    payments: DataFrame[Payment]
+
+    late_payments: Windowed[int] = windowed(
+        "7d",
+        "30d",
+        "all",
+        expression=_.payments[
+            _.created_at >= _.chalk_window,
+            _.created_at <= _.chalk_now,
+        ].count()
+        # materialization={"bucket_duration": "1h"},
     )
 
     tradelines: DataFrame[Tradeline]
