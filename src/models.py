@@ -213,6 +213,7 @@ class User:
     # Whether the user appears in a denylist in s3
     denylisted: bool
 
+    # import chalk.functions as F
     name_email_match_score: float = F.partial_ratio(
         _.name,
         _.email_username,
