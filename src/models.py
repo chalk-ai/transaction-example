@@ -280,4 +280,3 @@ class User:
             "$.requires_manual_review",
         ),
     )
-    at: FeatureTime
