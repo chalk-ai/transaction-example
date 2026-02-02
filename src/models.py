@@ -85,7 +85,6 @@ class TransactionSearch:
     )
 
 
-
 class TradelineKind(str, Enum):
     card = "card"
     auto = "auto"
@@ -180,7 +179,7 @@ class CreditReport:
         expression=_.payments[
             _.created_at >= _.chalk_window,
             _.created_at <= _.chalk_now,
-        ].count()
+        ].count(),
         # materialization={"bucket_duration": "1h"},
     )
 
@@ -245,6 +244,8 @@ class User:
         ].count(),
         # materialization={"bucket_duration": "1h"},
     )
+
+    is_fraud: bool = feature(max_staleness="infinity")
 
     llm: P.PromptResponse = feature(
         max_staleness="infinity",
