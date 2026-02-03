@@ -245,7 +245,7 @@ class User:
         # materialization={"bucket_duration": "1h"},
     )
 
-    is_fraud: bool = feature(max_staleness="infinity")
+    is_fraud: bool
 
     llm: P.PromptResponse = feature(
         max_staleness="infinity",
