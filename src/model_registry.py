@@ -3,13 +3,12 @@ from chalk import make_model_resolver
 from chalk.ml import ModelReference
 
 
-fraud_detection_model = ModelReference.from_version(
-    name="fraud_detection_model", version=4
-)
-
 make_model_resolver(
     name="fraud_detection_model",
-    model=fraud_detection_model,
+    model=ModelReference.from_version(
+        name="fraud_detection_model",
+        version=4,
+    ),
     input=[
         User.denylisted,
         User.email_age_days,
