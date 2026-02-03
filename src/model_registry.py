@@ -4,7 +4,7 @@ from chalk.ml import ModelReference
 
 
 fraud_detection_model = ModelReference.from_version(
-    name="fraud_detection_model", version=1
+    name="fraud_detection_model", version=4
 )
 
 make_model_resolver(
