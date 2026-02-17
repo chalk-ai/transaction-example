@@ -70,6 +70,7 @@ def get_domain_name(email: User.email) -> User.domain_name:
 
 @online
 def get_email_username(email: User.email) -> User.email_username:
+    # def get_email_username(email: str) -> str:
     username = email.split("@")[0]
     if "gmail.com" in email:
         username = username.split("+")[0].replace(".", "")
