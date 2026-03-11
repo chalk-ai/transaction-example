@@ -4,22 +4,21 @@ from enum import Enum
 
 import chalk.functions as F
 import chalk.prompts as P
-from chalk.features import Vector, embed
 from chalk import (
     DataFrame,
     FeatureTime,
+    NamedQuery,
+    Primary,
     Windowed,
     _,
     feature,
-    windowed,
-    Primary,
     has_many,
-    Validation,
+    windowed,
 )
-from chalk.features import features
+from chalk.features import Vector, embed, features
 
 from .groq import GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL, GROQ_MODEL_PROVIDER
-from .prompts import SYSTEM_PROMPT, StructuredOutput, USER_PROMPT
+from .prompts import SYSTEM_PROMPT, USER_PROMPT, StructuredOutput
 from .transaction_search_result import TransactionSearchResult
 
 default_completion = json.dumps(
@@ -80,9 +79,7 @@ class TransactionSearch:
         model="text-embedding-005",  # text-embedding-3-small
     )
 
-    results: DataFrame[TransactionSearchResult] = has_many(
-        lambda: TransactionSearch.q == TransactionSearchResult.query
-    )
+    results: DataFrame[TransactionSearchResult] = has_many(lambda: TransactionSearch.q == TransactionSearchResult.query)
 
 
 class TradelineKind(str, Enum):
@@ -281,3 +278,27 @@ class User:
             "$.requires_manual_review",
         ),
     )
+
+
+NamedQuery(
+    name="fraud_model",
+    version="1.0.0",
+    input=[User.id],
+    output=[
+        User.id,
+        User.email,
+        User.name,
+        User.dob,
+        User.email_username,
+        User.domain_name,
+        User.denylisted,
+        User.name_email_match_score,
+        User.emailage_response,
+        User.email_age_days,
+        User.domain_age_days,
+        User.credit_report_id,
+        User.total_spend,
+        User.count_withdrawals,
+        User.is_fraud,
+    ],
+)
