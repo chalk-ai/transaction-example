@@ -32,3 +32,6 @@ transactions_offline.chalk.sql
 chalk_test.go
 go.mod
 go.sum
+
+# Neptune-backed resolver; replaced at deploy time by src/neptune_stub.py
+src/neptune.py
