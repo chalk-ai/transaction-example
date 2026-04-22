@@ -245,8 +245,7 @@ class User:
     is_fraud: bool
 
     # Shortest number of hops from this user to any known FraudCase node
-    # in the Neptune identity-linkage graph, capped at 6. Returns 99 as a
-    # sentinel when no fraud case is reachable within the cap.
+    # in the Neptune identity-linkage graph, capped at 6.
     hops_to_known_fraud: int | None
 
     llm: P.PromptResponse = feature(
