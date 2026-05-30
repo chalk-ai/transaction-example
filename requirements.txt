@@ -1,4 +1,4 @@
-chalkpy[runtime,postgresql,vertexai]
+chalkpy[runtime,postgresql,vertexai]>=2.130.2
 google-generativeai
 lancedb~=0.24.3
 scikit-learn==1.6.1
