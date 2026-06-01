@@ -3,6 +3,7 @@
 
 # Ignore test files
 tests
+model_registry.py
 
 # Python artifacts
 venv

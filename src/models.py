@@ -1,9 +1,7 @@
-import json
 from datetime import date, datetime
 from enum import Enum
 
 import chalk.functions as F
-import chalk.prompts as P
 from chalk import (
     DataFrame,
     FeatureTime,
@@ -12,23 +10,9 @@ from chalk import (
     Windowed,
     _,
     feature,
-    has_many,
     windowed,
 )
-from chalk.features import Vector, embed, features
-
-from .groq import GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL, GROQ_MODEL_PROVIDER
-from .prompts import SYSTEM_PROMPT, USER_PROMPT, StructuredOutput
-from .transaction_search_result import TransactionSearchResult
-
-default_completion = json.dumps(
-    dict(
-        category="unknown",
-        is_nsf=False,
-        is_ach=False,
-        clean_memo="",
-    )
-)
+from chalk.features import features
 
 
 @features
@@ -37,49 +21,12 @@ class Transaction:
     amount: float
     memo: str
 
-    # :tags: genai
-    clean_memo: str
-
     # The User.id type defines our join key implicitly
     user_id: "User.id"
     user: "User"
 
-    # import chalk.functions as F
-    name_memo_sim: float = F.jaccard_similarity(
-        _.user.name,
-        _.clean_memo,
-    )
-
-    # Features can be vectors, and they can be computed
-    # via services or hosted models
-    vector: Vector[768] = embed(
-        input=lambda: Transaction.memo,
-        provider="vertexai",
-        model="text-embedding-005",
-        max_staleness="infinity",
-    )
-
     # The time at which the transaction was created for temporal consistency
     at: FeatureTime
-
-    completion: str = feature(max_staleness="infinity", default=default_completion)
-
-    category: str = "unknown"
-    is_nsf: bool = False
-    is_ach: bool = False
-
-
-@features
-class TransactionSearch:
-    q: Primary[str]
-    limit: int = 25
-    vector: Vector[768] = embed(
-        input=lambda: TransactionSearch.q,
-        provider="vertexai",  # openai
-        model="text-embedding-005",  # text-embedding-3-small
-    )
-
-    results: DataFrame[TransactionSearchResult] = has_many(lambda: TransactionSearch.q == TransactionSearchResult.query)
 
 
 class TradelineKind(str, Enum):
@@ -189,12 +136,6 @@ class CreditReport:
     total_payment_amount: float = _.tradelines[_.payment_amount].sum()
 
 
-class FinancialStability(str, Enum):
-    GOOD = "good"
-    AVERAGE = "average"
-    POOR = "poor"
-
-
 @features
 class User:
     # Features pulled from Postgres for the user
@@ -229,7 +170,6 @@ class User:
 
     # The number of transfers made by the user in the
     # last 1, 7, and 30 days.
-    # Uses the category pulled from Gemini to count payments
     count_withdrawals: Windowed[int] = windowed(
         "1d",
         "7d",
@@ -247,41 +187,6 @@ class User:
     # Shortest number of hops from this user to any known FraudCase node
     # in the Neptune identity-linkage graph, capped at 6.
     hops_to_known_fraud: int | None
-
-    llm: P.PromptResponse = feature(
-        max_staleness="infinity",
-        expression=P.completion(
-            messages=[
-                P.message(role="system", content=SYSTEM_PROMPT),
-                P.message(
-                    role="user",
-                    content=F.jinja(USER_PROMPT),
-                ),
-            ],
-            api_key=GROQ_API_KEY,
-            model_provider=GROQ_MODEL_PROVIDER,
-            model=GROQ_MODEL,
-            base_url=GROQ_BASE_URL,
-            max_tokens=8192,
-            temperature=0.1,
-            top_p=0.1,
-            output_structure=StructuredOutput,  # can pass in a pydantic base model for structured output
-        ),
-    )
-    llm_financial_stability: FinancialStability = feature(
-        max_staleness="infinity",
-        expression=F.json_value(
-            _.llm.response,
-            "$.financial_stability",
-        ),
-    )
-    llm_requires_manual_review: bool = feature(
-        max_staleness="infinity",
-        expression=F.json_value(
-            _.llm.response,
-            "$.requires_manual_review",
-        ),
-    )
 
 
 NamedQuery(
