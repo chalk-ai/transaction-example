@@ -3,6 +3,7 @@
 # requires-python = ">=3.12,<3.14"
 # dependencies = ["chalkcompute>=2.1.1", "openai", "pandas"]
 # ///
+from typing import Iterator
 
 import json
 from datetime import datetime, timedelta
@@ -23,31 +24,6 @@ SYSTEM_PROMPT = (
 )
 
 
-@chalkcompute.function
-def bulk_investigate_refunds() -> list[str]:
-    return chalkcompute.gather(
-        [
-            (
-                investigate_refund.with_knowledge_cutoff(
-                    knowledge_cutoff=datetime.now() - timedelta(hours=24),
-                ).defer(
-                    uid,
-                    "refund requested",
-                )
-            )
-            for uid in get_users()
-        ]
-    )
-
-
-@chalkcompute.function
-def ban_user(user_id: int) -> int:
-    return exec_sql(
-        "update users set banned=1 where id=?",
-        (user_id,),
-    )
-
-
 @chalkcompute.function(
     secrets=[
         Secret.from_env("OPENAI_API_KEY"),
@@ -63,19 +39,23 @@ def ban_user(user_id: int) -> int:
         ]
     ),
 )
-# def investigate_refund(user_id: int, reason: str) -> Iterator[str]:
-def investigate_refund(user_id: int, reason: str) -> str:
+def investigate_refund_streaming(user_id: int, reason: str) -> Iterator[str]:
     from chalk.client import ChalkClient
 
     chalk_client = ChalkClient()
     openai_client = get_openai_client()
+    yield "hello"
 
-    messages: list = [
+    messages: list = []
+    def add_msgs(*msgs):
+        for m in msgs:
+            messages.append(m)
+            yield str(m)
+
+    add_msgs(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"User {user_id}. Refund reason: {reason!r}."},
-    ]
-    # yield str(messages[0])
-    # yield str(messages[1])
+    )
     steps = []
 
     while True:
@@ -124,13 +104,11 @@ def investigate_refund(user_id: int, reason: str) -> str:
         )
 
         msg = response.choices[0].message
-
         if not msg.tool_calls:
-            decision = msg.content or ""
-            trace = "\n".join(steps)
-            return f"{trace}\n\n{decision}".lstrip() if steps else decision
+            add_msgs(msg)
+            raise StopIteration
 
-        messages.append(
+        add_msgs(
             {
                 "role": "assistant",
                 "content": msg.content,
@@ -159,9 +137,7 @@ def investigate_refund(user_id: int, reason: str) -> str:
             args = ", ".join(f"{k}={v!r}" for k, v in inp.items())
             steps.append(f"  {tc.function.name}({args}) → {result}")
             message = {"role": "tool", "tool_call_id": tc.id, "content": result}
-            messages.append(message)
-            # yield str({"message": tc.value})
-            # yield str(message)
+            add_msgs(message)
 
 
 def get_openai_client():
@@ -175,13 +151,5 @@ def get_openai_client():
         http_client=DefaultHttpxClient(
             transport=SyncOpenTelemetryTransport(httpx.HTTPTransport()),
         ),
+        max_retries=10,
     )
-
-
-def exec_sql(*args):
-    return 1
-
-
-
-def get_users():
-    return [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
