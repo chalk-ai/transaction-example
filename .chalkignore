@@ -36,3 +36,7 @@ go.sum
 
 # Neptune-backed resolver; replaced at deploy time by src/neptune_stub.py
 src/neptune.py
+
+# chalkcompute demo scripts — run directly, not deployed via chalk apply
+chalkcompute_agent_demo.py
+chalkcompute_vllm_server.py
