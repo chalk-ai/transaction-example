@@ -70,29 +70,39 @@ def investigate_refund(user_id: int, reason: str) -> str:
             "function": {
                 "name": "get_chalk_features",
                 "description": (
-                    """Fetch some features. The features available to you are:
-                    user.email,
-                    user.name,
-                    user.dob,
-                    user.email_username,
-                    user.domain_name,
-                    user.denylisted,
-                    user.name_email_match_score,
-                    user.emailage_response,
-                    user.email_age_days,
-                    user.domain_age_days,
-                    user.credit_report_id,
-                    user.total_spend,
-                    user.count_withdrawals,
-                    user.is_fraud,
-                    
+                    """Fetch some features for a user.
+
                     request them in small numbers, and keep calling this method a bunch.
-                    inputs should be a comma separated list
                     """
                 ),
                 "parameters": {
                     "type": "object",
-                    "properties": {"user_id": {"type": "integer"}, "features": {"type": "string"}},
+                    "properties": {
+                        "user_id": {"type": "integer"},
+                        "features": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "user.email",
+                                    "user.name",
+                                    "user.dob",
+                                    "user.email_username",
+                                    "user.domain_name",
+                                    "user.denylisted",
+                                    "user.name_email_match_score",
+                                    "user.emailage_response",
+                                    "user.email_age_days",
+                                    "user.domain_age_days",
+                                    "user.credit_report_id",
+                                    "user.total_spend",
+                                    "user.count_withdrawals",
+                                    "user.is_fraud",
+                                ],
+                            },
+                            "minItems": 1,
+                        },
+                    },
                     "required": ["user_id", "features"],
                 },
             },
@@ -140,13 +150,9 @@ def investigate_refund(user_id: int, reason: str) -> str:
         try:
             uid = int(inp["user_id"])
             if name == "get_chalk_features":
-                ctx = ChalkClient(
-                    # client_id=os.getenv("CHALK_CLIENT_ID"),
-                    # client_secret=os.getenv("CHALK_CLIENT_SECRET"),
-                    # trace=True
-                ).query(
+                ctx = ChalkClient().query(
                     input={"user.id": uid},
-                    output=inp["features"].split(","),
+                    output=inp["features"],
                 )
                 return "\n".join(f"{a.field}: {a.value}" for a in ctx.data)
         except Exception as e:
