@@ -1,15 +1,6 @@
 
 # Chalk Development Guidelines
 
-## Chalk Documentation
-
-For complete Chalk documentation optimized for AI assistants:
-
-- **Quick reference**: https://docs.chalk.ai/llms.txt (~200KB, core concepts)
-- **Full documentation**: https://docs.chalk.ai/llms-full.txt (~800KB, comprehensive)
-
-Fetch these URLs when you need detailed API references, examples, or information beyond what's included above.
-
 This document provides comprehensive guidelines for writing correct Chalk code based on the official Chalk documentation.
 
 **For additional help:** Use https://docs.chalk.ai or review examples at https://github.com/chalk-ai/examples to learn.
@@ -136,144 +127,7 @@ def batch_credit_scores() -> DataFrame[User.id, User.credit_score]:
 - Use `Features[...]` for multiple outputs
 - Use `@online` for real-time inference, `@offline` for batch processing
 
-**Static Resolvers (for reference data):**
-```python
-from chalk.features import DataFrame, online, _
-
-@online(static=True)
-def get_reference_data() -> DataFrame[
-    Feature.id,
-    Feature.value,
-]:
-    from chalkdf import DataFrame
-
-    return DataFrame.scan(
-        ["s3://bucket/path/to/data/*.parquet"]
-    ).select(
-        _.id.alias("feature.id"),
-        _.value.alias("feature.value"),
-    )
-```
-
-Static resolvers (`static=True`) run once at deployment startup to generate a plan: ideal for loading reference data from S3 or cloud storage. Use `chalkdf.DataFrame` for scanning parquet files.
-
-### 3. Streaming Resolvers
-
-For real-time data ingestion from Kafka or other streaming sources:
-
-```python
-from chalk.features.resolver import make_stream_resolver
-from chalk.streams import KafkaSource
-from chalk.features import _
-import chalk.functions as F
-from pydantic import BaseModel
-
-transactions_kafka = KafkaSource(name="transactions_topic")
-
-class TransactionMessage(BaseModel):
-    id: str
-    timestamp: int
-    user_id: int
-    amount: float
-
-transaction_stream = make_stream_resolver(
-    name="get_transactions_stream",
-    source=transactions_kafka,
-    message_type=TransactionMessage,
-    output_features={
-        Transaction.id: _.id,
-        Transaction.timestamp: F.from_unix_seconds(_.timestamp / 1000),
-        Transaction.user_id: _.user_id,
-        Transaction.amount: _.amount,
-    },
-)
-```
-
-**Key Points:**
-- Use `make_stream_resolver` for native streaming ingestion
-- Define message schema with Pydantic `BaseModel`
-- Map message fields to features using `output_features` dictionary
-- Use `chalk.functions` (e.g., `F.from_unix_seconds`) for transformations
-
-**Parsing Avro messages:**
-```python
-from chalk.features.resolver import make_stream_resolver
-from chalk.streams import KafkaSource
-from chalk.features import _
-import chalk.functions as F
-from pydantic import BaseModel
-
-events_kafka = KafkaSource(name="events_topic")
-
-AVRO_SCHEMA = """
-{
-  "type": "record",
-  "name": "EventMessage",
-  "fields": [
-    {"name": "timestamp", "type": "long"},
-    {"name": "user_id", "type": "int"},
-    {"name": "event_type", "type": "string"}
-  ]
-}
-"""
-
-class EventMessage(BaseModel):
-    timestamp: int
-    user_id: int
-    event_type: str
-
-# Parse raw bytes to structured message
-parsed_message = F.avro_deserialize(_, schema=AVRO_SCHEMA, target_type=EventMessage)
-
-# Handle parse failures gracefully with F.recover
-safe_parsed = F.recover(parsed_message, None)
-
-event_stream = make_stream_resolver(
-    name="get_events_stream",
-    source=events_kafka,
-    parse=safe_parsed,
-    message_type=EventMessage,
-    output_features={
-        Event.id: F.cast(_.user_id, str) + "_" + F.cast(_.timestamp, str),
-        Event.user_id: _.user_id,
-        Event.timestamp: F.from_unix_seconds(_.timestamp),
-        Event.event_type: _.event_type,
-    },
-)
-```
-
-**Parsing Protobuf messages:**
-```python
-from messages.user_pb2 import UserMessage  # Import generated protobuf classes
-from chalk.features.resolver import make_stream_resolver
-from chalk.features import _
-import chalk.functions as F
-
-# Strip first 6 bytes (e.g., header), then parse the protobuf message
-parsed_message = F.proto_deserialize(F.substr(_, 6, None), UserMessage)
-
-# Exclude any UserMessages whose user_type == GUEST
-parse_expression = F.if_then_else(
-    parsed_message.user_type == UserMessage.UserType.GUEST,
-    None,
-    parsed_message,
-)
-
-users_streaming_resolver = make_stream_resolver(
-    name="get_users_stream",
-    source=kafka_source,
-    message_type=UserMessage,
-    parse=parse_expression,
-    output_features={
-        User.user_id: _.id,
-        User.full_name: _.name,
-        User.email_address: _.contact_info.email_address,  # Nested field access
-        User.updated_at: F.from_unix_seconds(_.updated_at / 1_000_000),
-    },
-)
-```
-
-### 4. Expressions (High-Performance Inline Features)
+### 3. Expressions (High-Performance Inline Features)
 
 ```python
 import chalk.functions as F
@@ -357,52 +211,14 @@ class User:
     id: int
     transactions: DataFrame[Transaction]
 
-    # Multiple time windows with proper filtering
+    # Multiple time windows
     transaction_amounts: Windowed[float] = windowed(
         "1d", "7d", "30d",
         expression=_.transactions[
             _.amount,
-            _.created_at > _.chalk_window,  # Start of window
-            _.created_at < _.chalk_now,      # Current time
-        ].sum(),
-        default=0,
+            _.created_at > _.chalk_window
+        ].sum()
     )
-```
-
-**Understanding `_.chalk_window` and `_.chalk_now`:**
-- `_.chalk_window` - The start of the time window (dynamically computed based on window size)
-- `_.chalk_now` - The current timestamp at query time
-
-**Important:** For windowed aggregations, use `_.chalk_window` instead of manual timedelta offsets:
-```python
-# CORRECT - use _.chalk_window for window-relative filtering
-_.created_at > _.chalk_window
-_.created_at < _.chalk_now
-
-# ALSO VALID - timedelta offset from now (for explicit offsets outside windowed context)
-_.created_at > _.chalk_now - timedelta(days=7)
-
-# BUT PREFER _.chalk_window in windowed() expressions - it automatically
-# adjusts to each window size ("1d", "7d", "30d") you define
-```
-
-**With materialization for high-volume data:**
-```python
-total_spent: Windowed[float] = windowed(
-    "1d", "7d", "30d",
-    expression=_.transactions[
-        _.amount,
-        _.created_at > _.chalk_window,
-        _.created_at < _.chalk_now,
-    ].sum(),
-    materialization={
-        "bucket_durations": {
-            "1h": ["1d"],
-            "1d": ["7d", "30d"],
-        },
-    },
-    default=0,
-)
 ```
 
 ## Data Source Integration
@@ -430,29 +246,6 @@ total_spent: Windowed[float] = windowed(
 select id, name, email from users where id = $\{user.id}
 ```
 
-### Incremental Queries
-
-For efficient ingestion of immutable/append-only tables (event logs, transactions):
-
-```sql
--- type: offline
--- resolves: LoginEvent
--- source: PG
--- incremental:
---   mode: row
---   lookback_period: 60m
---   incremental_column: attempted_at
-select attempted_at, status, user_id from logins
-```
-
-**How it works:**
-- First run ingests all data from the source
-- Subsequent runs only fetch new rows based on `incremental_column`
-- The `incremental_column` must be monotonically increasing (typically a timestamp)
-- `lookback_period` handles late-arriving data by re-checking recent rows
-
-**Use cases:** Event tables, audit logs, transaction history - any immutable data that grows over time.
-
 ## Best Practices
 
 ### Feature Design
@@ -468,40 +261,6 @@ class User:
     # :owner: mary.shelley@company.com
     # :tags: team:identity, priority:high
     name: str
-```
-
-5. **Forward references** - When referencing a feature class that's defined later or in another file, put quotes around the entire type annotation:
-```python
-# CORRECT - quotes around the whole type
-reservations: "DataFrame[Reservation]" = has_many(
-    lambda: Reservation.user_id == User.id
-)
-
-# WRONG - quotes only around class name inside brackets
-reservations: DataFrame["Reservation"] = has_many(...)  # Will cause issues!
-```
-
-6. **Circular imports** - When features reference each other across files, use `TYPE_CHECKING`:
-```python
-from typing import TYPE_CHECKING
-from chalk.features import features, has_many, DataFrame
-
-if TYPE_CHECKING:
-    from src.models.user import User
-
-@features
-class Transaction:
-    id: str
-    user_id: "User.id"  # String reference for foreign key
-    amount: float
-
-# For has_many with lambdas referencing other classes
-@features
-class User:
-    id: str
-    transactions: "DataFrame[Transaction]" = has_many(
-        lambda: User.id == Transaction.user_id
-    )
 ```
 
 ### Resolver Patterns
@@ -523,20 +282,13 @@ expensive_feature: str = feature(
 ```
 
 ### Deployment & Testing
-
-1. **Lint before deploying** - Always check for errors before deployment:
-```bash
-chalk lint          # Check for errors
-chalk apply         # Deploy after lint passes
-```
-
-2. **Use branch deployments** for testing:
+1. **Use branch deployments** for testing:
 ```bash
 chalk apply --branch feature-branch
 chalk query --branch feature-branch --in user.id=123
 ```
 
-3. **Named queries** for complex, reusable query patterns:
+2. **Named queries** for complex, reusable query patterns:
 ```python
 from chalk import NamedQuery
 
@@ -549,51 +301,11 @@ NamedQuery(
 )
 ```
 
-4. **Unit testing expressions** with `check_expression`:
+3. **Unit testing** with pytest:
 ```python
-from chalk.testing import check_expression
-
-def test_is_successful():
-    check_expression(
-        Order.is_successful,
-        [
-            Order(id="1", status="succeeded", is_successful=True),
-            Order(id="2", status="failed", is_successful=False),
-        ],
-    )
-```
-
-5. **Testing with has_many features** - Pass related entities as lists:
-```python
-from datetime import datetime, timezone
-from chalk.client import ChalkClient
-
-def test_user_total_spent(chalk_client: ChalkClient):
-    chalk_client.check(
-        input={
-            User.id: 1,
-            User.transactions_sent: [
-                Transaction(id="t1", amount=5000, timestamp=datetime(2025, 12, 4, 11, 0)),
-                Transaction(id="t2", amount=3000, timestamp=datetime(2025, 12, 4, 12, 0)),
-            ],
-        },
-        assertions={
-            User.total_amount_sent["7d"]: 8000.0
-        },
-        now=datetime(2025, 12, 5, tzinfo=timezone.utc),
-    )
-```
-
-6. **Testing streaming resolvers**:
-```python
-def test_transactions_stream(chalk_client: ChalkClient):
-    sample_messages = [...]  # Your test message payloads
-
-    result = chalk_client.test_streaming_resolver(
-        resolver=transaction_streaming_resolver,
-        message_bodies=sample_messages,
-    )
-    assert len(result.features) > 0
+def test_email_domain_resolver():
+    result = get_email_domain("user@example.com")
+    assert result == "example.com"
 ```
 
 ## Common Patterns
@@ -609,79 +321,22 @@ def get_credit_score(user_id: User.id) -> User.credit_score:
     return response.json()["score"]
 ```
 
-### Model Registry
-
-Chalk's model registry provides versioned model management with automatic deployment:
-
-**Loading models into deployment:**
+### ML Model Integration
 ```python
-from chalk.features import feature, features
-from chalk.ml import ModelReference
-from chalk import make_model_resolver
+import mlflow
+from chalk import online
+from chalk.features import before_all
 
-# Load a model by alias (e.g., "latest", "production")
-risk_model = ModelReference.from_alias(
-    name="RiskScoreModel",
-    alias="latest",
-)
+model = None
 
-# Or load by specific version number
-risk_model_v1 = ModelReference.from_version(
-    name="RiskScoreModel",
-    version=1,
-)
+@before_all
+def load_model():
+    global model
+    model = mlflow.load_model("models:/fraud-detection@production")
 
-@features
-class User:
-    id: int
-    age: int
-    income: float
-    risk_score: float = feature(versions=2)  # Versioned feature
-
-# Create model resolver connecting model to features
-make_model_resolver(
-    name="user_risk_score_prediction",
-    model=risk_model,
-    input=[User.age, User.income],
-    output=[User.risk_score],
-)
-
-# For versioned features, use @ syntax
-make_model_resolver(
-    name="user_risk_score_v2_prediction",
-    model=risk_model,
-    input=[User.age, User.income],
-    output=[User.risk_score@2],
-)
-```
-
-**Registering models (run separately, not in deployment code):**
-```python
-from chalk.client import ChalkClient
-
-client = ChalkClient()
-
-# Option 1: Register a trained Python model object
-from sklearn.ensemble import RandomForestClassifier
-rfc = RandomForestClassifier()
-rfc.fit(X_train, y_train)
-
-client.register_model_version(
-    name="RiskScoreModel",
-    aliases=["v1.0", "latest"],
-    model=rfc,
-    input_features=[User.age, User.income],
-    output_features=[User.risk_score],
-)
-
-# Option 2: Register from local model files
-client.register_model_version(
-    name="RiskScoreModel",
-    aliases=["v2.0"],
-    model_paths=["./model.pth"],
-    additional_files=["./tokenizer.json"],
-    metadata={"framework": "pytorch"},
-)
+@online
+def predict_fraud(features: User) -> User.fraud_probability:
+    return model.predict([[features.age, features.transaction_count]])[0]
 ```
 
 ### LLM Integration

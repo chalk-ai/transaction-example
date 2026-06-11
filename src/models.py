@@ -152,8 +152,8 @@ class User:
 
     # import chalk.functions as F
     name_email_match_score: float = F.partial_ratio(
-        _.name,
-        _.email_username,
+        F.lower(_.name),
+        F.lower(_.email_username),
     )
 
     emailage_response: str

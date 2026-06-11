@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.12,<3.14"
-# dependencies = ["fastapi", "uvicorn[standard]", "python-dotenv", "chalkcompute>=2.1.1"]
+# dependencies = ["fastapi", "uvicorn[standard]", "python-dotenv", "chalkcompute==2.1.1"]
 # ///
 """Refund-abuse agent demo UI — the web front end.
 
@@ -27,14 +27,13 @@ import threading
 import time
 import uuid
 from urllib.parse import urlencode
+
+import chalk_client_chunked  # buffered investigate_refund (returns full text)
+import chalk_client_generator  # streaming investigate_refund_streaming (yields chunks)
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
-import uvicorn
-
-import chalk_client_chunked    # buffered investigate_refund (returns full text)
-import chalk_client_generator  # streaming investigate_refund_streaming (yields chunks)
-
 
 # ── Reading the agent's text response ────────────────────────────────────────
 # The client modules return the agent's flat "{trace}\n\n{verdict}" text.
@@ -49,8 +48,7 @@ _VERDICT_RE = re.compile(r"\b(APPROVE|DENY|ESCALATE)\b")
 # the whole blob, so the FIRST line loses its indent. Call lines are identified by
 # the `name(...) →` shape, so flush-left result lines (`user.total_spend: …`) never
 # match. Match each call's result up to the next call line or end-of-trace.
-_STEP_RE = re.compile(r"^ {0,2}(\w+)\((.*?)\)\s*→\s*(.*?)(?=\n {0,2}\w+\(.*?\)\s*→|\Z)",
-                      re.DOTALL | re.MULTILINE)
+_STEP_RE = re.compile(r"^ {0,2}(\w+)\((.*?)\)\s*→\s*(.*?)(?=\n {0,2}\w+\(.*?\)\s*→|\Z)", re.DOTALL | re.MULTILINE)
 # key=value pairs in an args string; values may be quoted/bracketed (and contain
 # commas), so match those before the bare-token case.
 _ARG_RE = re.compile(r"(\w+)=('[^']*'|\"[^\"]*\"|\[[^\]]*\]|[^,]+)")
@@ -84,7 +82,7 @@ def _format_spend(text: str) -> str:
 def trace_block(raw: str) -> str:
     """The leading tool-call trace, i.e. everything before the verdict."""
     m = _VERDICT_RE.search(raw)
-    return raw[:m.start()] if m else raw
+    return raw[: m.start()] if m else raw
 
 
 def split_verdict(raw: str) -> tuple[str | None, str]:
@@ -96,8 +94,8 @@ def split_verdict(raw: str) -> tuple[str | None, str]:
     m = _VERDICT_RE.search(raw)
     if not m:
         return None, raw.strip()
-    reasoning = re.sub(r"\*{1,2}([^*]+)\*{1,2}", r"\1", raw[m.end():]).strip(" :\n-")
-    return m.group(1), reasoning or raw[m.start():].strip()
+    reasoning = re.sub(r"\*{1,2}([^*]+)\*{1,2}", r"\1", raw[m.end() :]).strip(" :\n-")
+    return m.group(1), reasoning or raw[m.start() :].strip()
 
 
 def parse_steps(raw: str) -> list[dict]:
@@ -105,13 +103,15 @@ def parse_steps(raw: str) -> list[dict]:
     steps = []
     for i, m in enumerate(_STEP_RE.finditer(trace_block(raw))):
         name, args, result = m.group(1), m.group(2), m.group(3)
-        steps.append({
-            "id": f"s{i}",
-            "tool": name,
-            "label": _step_label(name, args),
-            "args": _parse_args(args),
-            "result": _format_spend(_humanize_windows(result.strip())),
-        })
+        steps.append(
+            {
+                "id": f"s{i}",
+                "tool": name,
+                "label": _step_label(name, args),
+                "args": _parse_args(args),
+                "result": _format_spend(_humanize_windows(result.strip())),
+            }
+        )
     return steps
 
 
@@ -149,19 +149,20 @@ def trace_url(agent, start_s: float, end_s: float) -> str:
     """Console flame-graph trace view for `agent`, windowed ±5min around the call."""
     vi = getattr(agent, "version_info", None)
     sg = (getattr(vi, "scaling_group_name", "") if vi else "") or _SG_FALLBACK
-    qs = urlencode({
-        "v": "remote-call-traces",
-        "ds": int(start_s * 1000) - 300_000,
-        "de": int(end_s * 1000) + 300_000,
-        "scalingGroupTraceView": "flame-graph",
-    })
-    return (f"{CONSOLE_BASE}/projects/{CONSOLE_PROJECT}"
-            f"/environments/{ENV_ID}/scaling-groups/{sg}?{qs}")
+    qs = urlencode(
+        {
+            "v": "remote-call-traces",
+            "ds": int(start_s * 1000) - 300_000,
+            "de": int(end_s * 1000) + 300_000,
+            "scalingGroupTraceView": "flame-graph",
+        }
+    )
+    return f"{CONSOLE_BASE}/projects/{CONSOLE_PROJECT}/environments/{ENV_ID}/scaling-groups/{sg}?{qs}"
 
 
-def _race_modes(user_id: int, reason: str, q: queue.Queue,
-                first_chunk_timeout: float = 5.0,
-                overall_timeout: float = 180.0):
+def _race_modes(
+    user_id: int, reason: str, q: queue.Queue, first_chunk_timeout: float = 5.0, overall_timeout: float = 180.0
+):
     """Fire the streaming and chunked agents at once; pick whichever serves.
 
     Use the streaming result if it produces a first chunk within the timeout;
@@ -177,10 +178,13 @@ def _race_modes(user_id: int, reason: str, q: queue.Queue,
     def run_stream():
         try:
             for ch in chalk_client_generator.investigate(user_id, reason):
-                stream_chunks.append(ch); s_first.set()
+                stream_chunks.append(ch)
+                s_first.set()
             s_done.set()
         except Exception as e:
-            s_err["e"] = e; s_first.set(); s_done.set()
+            s_err["e"] = e
+            s_first.set()
+            s_done.set()
 
     def run_chunked():
         try:
@@ -263,9 +267,13 @@ def _producer(user_id: int, reason: str, q: queue.Queue, mode: str = "chunked") 
 
 def _producer_reply(q: queue.Queue) -> None:
     """investigate_refund is stateless — explain that follow-ups aren't supported."""
-    q.put({"type": "question",
-           "text": "investigate_refund runs statelessly on Chalk Compute and doesn't "
-                   "carry conversation history — start a new investigation to run it again."})
+    q.put(
+        {
+            "type": "question",
+            "text": "investigate_refund runs statelessly on Chalk Compute and doesn't "
+            "carry conversation history — start a new investigation to run it again.",
+        }
+    )
     q.put(None)
 
 
@@ -288,7 +296,7 @@ app = FastAPI()
 class InvestigateRequest(BaseModel):
     user_id: int
     reason: str
-    mode: str = "chunked"   # "chunked" | "generator" (which deployed fn to call)
+    mode: str = "chunked"  # "chunked" | "generator" (which deployed fn to call)
 
 
 class ReplyRequest(BaseModel):
@@ -312,16 +320,18 @@ async def investigate(req: InvestigateRequest) -> StreamingResponse:
         async for chunk in _sse(q):
             yield chunk
 
-    return StreamingResponse(stream(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
 
 
 @app.post("/reply/{session_id}")
 async def reply(session_id: str, req: ReplyRequest) -> StreamingResponse:
     q: queue.Queue = queue.Queue()
     threading.Thread(target=_producer_reply, args=(q,), daemon=True).start()
-    return StreamingResponse(_sse(q), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        _sse(q), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
 
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
@@ -1339,6 +1349,7 @@ updateModeLabel();
 
 if __name__ == "__main__":
     import sys
+
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     print(f"\n  Refund Intelligence UI → http://localhost:{port}\n")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")

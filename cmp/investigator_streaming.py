@@ -52,7 +52,7 @@ def investigate_refund_streaming(user_id: int, reason: str) -> Iterator[str]:
             messages.append(m)
             yield str(m)
 
-    add_msgs(
+    yield from add_msgs(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"User {user_id}. Refund reason: {reason!r}."},
     )
@@ -105,10 +105,10 @@ def investigate_refund_streaming(user_id: int, reason: str) -> Iterator[str]:
 
         msg = response.choices[0].message
         if not msg.tool_calls:
-            add_msgs(msg)
-            raise StopIteration
+            yield from add_msgs(msg)
+            return
 
-        add_msgs(
+        yield from add_msgs(
             {
                 "role": "assistant",
                 "content": msg.content,
@@ -137,7 +137,7 @@ def investigate_refund_streaming(user_id: int, reason: str) -> Iterator[str]:
             args = ", ".join(f"{k}={v!r}" for k, v in inp.items())
             steps.append(f"  {tc.function.name}({args}) → {result}")
             message = {"role": "tool", "tool_call_id": tc.id, "content": result}
-            add_msgs(message)
+            yield from add_msgs(message)
 
 
 def get_openai_client():

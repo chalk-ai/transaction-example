@@ -42,14 +42,16 @@ from chalkcompute import RemoteFunction
 
 if __name__ == "__main__":
     investigate_refund = RemoteFunction.from_name("investigate_refund")
-    chalkcompute.gather([
-        (
-            investigate_refund.with_knowledge_cutoff(
-                knowledge_cutoff=datetime.now() - timedelta(hours=24),
-            ).defer(uid, "refund requested")
-        )
-        for uid in get_users()
-    ])
+    chalkcompute.gather(
+        [
+            (
+                investigate_refund.with_knowledge_cutoff(
+                    knowledge_cutoff=datetime.now() - timedelta(hours=24),
+                ).defer(uid, "refund requested")
+            )
+            for uid in get_users()
+        ]
+    )
 
 
 
