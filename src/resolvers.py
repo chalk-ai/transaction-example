@@ -1,58 +1,28 @@
 import json
-import textwrap
 from datetime import datetime
 
-import google.generativeai as genai
 from chalk import online
 from chalk.features import Features, before_all
 
 from src.denylist import Denylist
 from src.emailage.client import emailage_client
 from src.experian import ExperianClient
-from src.models import CreditReport, Tradeline, TradelineKind, Transaction, User
-
-model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
+from src.models import CreditReport, Tradeline, TradelineKind, User
 
 
 @online
-async def get_transaction_category(memo: Transaction.memo) -> Transaction.completion:
-    return (
-        model.generate_content(
-            textwrap.dedent(
-                f"""\
-        Please return JSON for classifying a financial transaction
-        using the following schema.
-
-        {{"category": str, "is_nsf": bool, "clean_memo": str, "is_ach": bool}}
-
-        All fields are required. Return EXACTLY one JSON object with NO other text.
-        Memo: {memo}"""
-            ),
-            generation_config={"response_mime_type": "application/json"},
-        )
-        .candidates[0]
-        .content.parts[0]
-        .text
-    )
-
-
-@online
-def parse_genai_transaction_info(
-    completion: Transaction.completion,
-) -> Features[
-    Transaction.category,
-    Transaction.is_nsf,
-    Transaction.is_ach,
-    Transaction.clean_memo,
-]:
-    """Parse out the structured outputs from the genai completion."""
-    body = json.loads(completion)
-    return Transaction(
-        category=body["category"],
-        is_nsf=body["is_nsf"],
-        is_ach=body["is_ach"],
-        clean_memo=body["clean_memo"],
-    )
+def predict_is_fraud(
+    denylisted: User.denylisted,
+    name_email_match_score: User.name_email_match_score,
+    email_age_days: User.email_age_days,
+    hops_to_known_fraud: User.hops_to_known_fraud,
+) -> User.is_fraud:
+    """A trivial rules-based fraud prediction from a few signals."""
+    if denylisted:
+        return True
+    if hops_to_known_fraud is not None and hops_to_known_fraud <= 2:
+        return True
+    return name_email_match_score < 50 and email_age_days < 30
 
 
 denylist = Denylist(source="gs://socure-data/denylist.csv")
