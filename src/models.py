@@ -12,7 +12,7 @@ from chalk import (
     feature,
     windowed,
 )
-from chalk.features import features
+from chalk.features import features, Vector
 
 
 @features
@@ -143,6 +143,8 @@ class User:
     email: str
     name: str
     dob: date
+
+    email_embedding: Vector[1024] = F.catalog_call("model.qwen3", _.email)
 
     email_username: str
     domain_name: str
