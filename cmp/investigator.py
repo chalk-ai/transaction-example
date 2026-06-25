@@ -23,6 +23,114 @@ SYSTEM_PROMPT = (
     "If the user should be banned, ban the user."
 )
 
+FEATURE_NAMES = [
+    "user.email",
+    "user.name",
+    "user.dob",
+    "user.email_username",
+    "user.domain_name",
+    "user.denylisted",
+    "user.name_email_match_score",
+    "user.emailage_response",
+    "user.email_age_days",
+    "user.domain_age_days",
+    "user.credit_report_id",
+    "user.total_spend",
+    "user.count_withdrawals",
+    "user.is_fraud",
+]
+
+
+def _tool(name: str, description: str, properties: dict, required: list[str]) -> dict:
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        },
+    }
+
+
+TOOLS = [
+    _tool(
+        "get_chalk_features",
+        "Fetch some features for a user.",
+        {
+            "user_id": {"type": "integer"},
+            "features": {
+                "type": "array",
+                "items": {"type": "string", "enum": FEATURE_NAMES},
+                "minItems": 1,
+            },
+        },
+        ["user_id", "features"],
+    ),
+    _tool(
+        "ban_user",
+        "Ban a user",
+        {"user_id": {"type": "integer"}},
+        ["user_id"],
+    ),
+]
+
+
+def run_agent(
+    openai_client, messages: list, handlers: dict, model: str = "gpt-5.5"
+) -> str:
+    """Drive the chat-completion tool loop until the model stops calling tools.
+
+    `handlers` maps a tool name to a callable taking the parsed arguments dict
+    and returning a string result. Returns the trace of tool calls followed by
+    the model's final message.
+    """
+    steps = []
+    while True:
+        response = openai_client.chat.completions.create(
+            model=model,
+            tools=TOOLS,
+            messages=messages,
+        )
+
+        msg = response.choices[0].message
+        if not msg.tool_calls:
+            decision = msg.content or ""
+            trace = "\n".join(steps)
+            return f"{trace}\n\n{decision}".lstrip() if steps else decision
+
+        messages.append(
+            {
+                "role": "assistant",
+                "content": msg.content,
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ],
+            }
+        )
+
+        for tc in msg.tool_calls:
+            inp = json.loads(tc.function.arguments)
+            handler = handlers.get(tc.function.name)
+            if handler is None:
+                raise RuntimeError(f"unknown tool: {tc.function.name}")
+            with chalkcompute.span(f"tool.{tc.function.name}"):
+                result = handler(inp)
+            args = ", ".join(f"{k}={v!r}" for k, v in inp.items())
+            steps.append(f"  {tc.function.name}({args}) → {result}")
+            messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+
 
 @chalkcompute.function
 def bulk_investigate_refunds() -> list[str]:
@@ -68,111 +176,28 @@ def investigate_refund(user_id: int, reason: str) -> str:
     from chalk.client import ChalkClient
 
     chalk_client = ChalkClient()
-    openai_client = get_openai_client()
+
+    def get_chalk_features(inp: dict) -> str:
+        ctx = chalk_client.query(
+            input={"user.id": inp["user_id"]},
+            output=inp["features"],
+        )
+        return "\n".join(f"{a.field}: {a.value}" for a in ctx.data)
+
+    def ban(inp: dict) -> str:
+        ban_user(inp["user_id"])
+        return f"banned user {inp['user_id']}"
 
     messages: list = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"User {user_id}. Refund reason: {reason!r}."},
     ]
-    steps = []
-    while True:
-        response = openai_client.chat.completions.create(
-            model="gpt-5.5",
-            tools=[
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_chalk_features",
-                        "description": "Fetch some features for a user.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "user_id": {"type": "integer"},
-                                "features": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string",
-                                        "enum": [
-                                            "user.email",
-                                            "user.name",
-                                            "user.dob",
-                                            "user.email_username",
-                                            "user.domain_name",
-                                            "user.denylisted",
-                                            "user.name_email_match_score",
-                                            "user.emailage_response",
-                                            "user.email_age_days",
-                                            "user.domain_age_days",
-                                            "user.credit_report_id",
-                                            "user.total_spend",
-                                            "user.count_withdrawals",
-                                            "user.is_fraud",
-                                        ],
-                                    },
-                                    "minItems": 1,
-                                },
-                            },
-                            "required": ["user_id", "features"],
-                        },
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "ban_user",
-                        "description": "Ban a user",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "user_id": {"type": "integer"},
-                            },
-                        },
-                        "required": ["user_id"],
-                    },
-                },
-            ],
-            messages=messages,
-        )
 
-        msg = response.choices[0].message
-        if not msg.tool_calls:
-            decision = msg.content or ""
-            trace = "\n".join(steps)
-            return f"{trace}\n\n{decision}".lstrip() if steps else decision
-
-        messages.append(
-            {
-                "role": "assistant",
-                "content": msg.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                    }
-                    for tc in msg.tool_calls
-                ],
-            }
-        )
-
-        for tc in msg.tool_calls:
-            inp = json.loads(tc.function.arguments)
-            with chalkcompute.span(f"tool.{tc.function.name}"):
-                if tc.function.name == "get_chalk_features":
-                    ctx = chalk_client.query(
-                        input={"user.id": inp["user_id"]},
-                        output=inp["features"],
-                    )
-                    result = "\n".join(f"{a.field}: {a.value}" for a in ctx.data)
-                elif tc.function.name == "ban_user":
-                    ban_user(inp["user_id"])
-                else:
-                    raise RuntimeError(f"unknown tool: {tc.function.name}")
-            args = ", ".join(f"{k}={v!r}" for k, v in inp.items())
-            steps.append(f"  {tc.function.name}({args}) → {result}")
-            message = {"role": "tool", "tool_call_id": tc.id, "content": result}
-            messages.append(message)
-
+    return run_agent(
+        get_openai_client(),
+        messages,
+        handlers={"get_chalk_features": get_chalk_features, "ban_user": ban},
+    )
 
 
 def get_openai_client():
@@ -192,7 +217,6 @@ def get_openai_client():
 
 def exec_sql(*args):
     return 1
-
 
 
 def get_users():
