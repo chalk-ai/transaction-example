@@ -11,9 +11,7 @@ if __name__ == "__main__":
         cpu="2",
         memory="4Gi",
         image=(
-            Image
-              .debian_slim(python_version="3.13")
-              .run_commands("pip install claude")
+            Image.debian_slim(python_version="3.13").run_commands("pip install claude")
         ),
         # volumes=[("code", "/code")],
     ).run()

@@ -47,6 +47,7 @@ def investigate_refund_streaming(user_id: int, reason: str) -> Iterator[str]:
     yield "hello"
 
     messages: list = []
+
     def add_msgs(*msgs):
         for m in msgs:
             messages.append(m)
@@ -116,7 +117,10 @@ def investigate_refund_streaming(user_id: int, reason: str) -> Iterator[str]:
                     {
                         "id": tc.id,
                         "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
                     }
                     for tc in msg.tool_calls
                 ],
@@ -153,3 +157,4 @@ def get_openai_client():
         ),
         max_retries=10,
     )
+
