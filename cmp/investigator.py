@@ -16,6 +16,9 @@ SYSTEM_PROMPT = (
     "relevant tools include the fraud prediction and account risk signals. "
     "Use your tools to gather the evidence you need — look up the fraud prediction first, "
     "then decide whether you need more context before ruling. "
+    "Fraud rarely acts alone — always check the user's linked accounts, "
+    "and if any exist, investigate them with the same tool before ruling. "
+    "Direct links to denylisted or fraudulent accounts are strong evidence of abuse. "
     "Reply with APPROVE, DENY, or ESCALATE on the first line, "
     "then one sentence of reasoning. "
     "When you request features, request them in small numbers, and keep calling the tool for fetching features. "
@@ -38,6 +41,8 @@ FEATURE_NAMES = [
     "user.total_spend",
     "user.count_withdrawals",
     "user.is_fraud",
+    "user.hops_to_known_fraud",
+    "user.linked_account_ids",
 ]
 
 
@@ -59,7 +64,7 @@ def _tool(name: str, description: str, properties: dict, required: list[str]) ->
 TOOLS = [
     _tool(
         "get_chalk_features",
-        "Fetch some features for a user.",
+        "Fetch features for any user by id — including linked accounts discovered during the investigation.",
         {
             "user_id": {"type": "integer"},
             "features": {

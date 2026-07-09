@@ -1,9 +1,9 @@
-"""Neptune-backed resolver for `User.hops_to_known_fraud`.
+"""Neptune-backed resolvers for the identity-linkage graph features.
 
 This file is excluded from `chalk apply` via `.chalkignore` — it's kept in
 the repo as the reference implementation that would run in an environment
-with a Neptune cluster available. The stub in `src/neptune_stub.py`
-defines a resolver with the same name for the actual deploy.
+with a Neptune cluster available. The stubs in `src/neptune_stub.py`
+define resolvers with the same names for the actual deploy.
 """
 
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
@@ -66,3 +66,34 @@ def hops_to_known_fraud(user_id: User.id) -> User.hops_to_known_fraud:
     # A Gremlin Path's length counts vertices + edges; number of hops is
     # (len - 1) / 2. Take the shortest.
     return min((len(p) - 1) // 2 for p in paths)
+
+
+@online
+def linked_account_ids(user_id: User.id) -> User.linked_account_ids:
+    """Collect other User accounts within two hops of this user along the
+    identity-linkage edges (shared device, IP, email domain, or payment
+    instrument)."""
+
+    g = traversal().withRemote(conn)
+
+    linked = (
+        g.V()
+        .has("User", "user_id", str(user_id))
+        .repeat(
+            __.bothE(
+                "USED_EMAIL_DOMAIN",
+                "USED_DEVICE",
+                "LOGGED_IN_FROM_IP",
+                "SHARED_CREDIT_REPORT",
+            )
+            .otherV()
+            .simplePath()
+        )
+        .times(2)
+        .emit(__.hasLabel("User"))
+        .values("user_id")
+        .dedup()
+        .toList()
+    )
+
+    return sorted(int(uid) for uid in linked if int(uid) != user_id)
