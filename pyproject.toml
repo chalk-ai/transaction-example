@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Chalk feature engineering demos"
 requires-python = ">=3.12"
 dependencies = [
-    "chalkpy[runtime,postgresql]>=2.130.2",
+    "chalkpy[postgresql,runtime]>=2.130.2",
     "chalkcompute>=2.0.1",
     "scikit-learn==1.6.1",
     "xgboost==3.1.3",

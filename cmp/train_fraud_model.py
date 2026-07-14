@@ -29,7 +29,7 @@ DEFAULT_TARGET = "transaction.is_fraud"
         ]
     ),
 )
-def train_fraud_model(dataset: str, target: str):
+def train_fraud_model(dataset: str, target: str) -> None:
     import pandas as pd
     import xgboost as xgb
     from sklearn.metrics import roc_auc_score
