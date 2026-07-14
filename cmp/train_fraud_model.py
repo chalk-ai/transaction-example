@@ -51,7 +51,7 @@ def train_fraud_model(dataset: str, target: str):
     client = ChalkClient()
 
     # Every column except the target is a feature.
-    df = client.get_dataset(id=dataset).to_pandas()
+    df = client.get_dataset(id=dataset).to_pandas(output_id=False, output_ts=False)
     feature_columns = [
         col
         for col in df.columns
@@ -87,6 +87,9 @@ def train_fraud_model(dataset: str, target: str):
         input_schema={col: float for col in feature_columns},
         output_schema={"fraud_score": float},
         dependencies=["xgboost", "pandas", "chalkdf"],
+        metadata={
+            "auc": auc,
+        },
     )
     client.deploy_model_version_to_scaling_group(
         name=f"fraud-detection-{result.model_version}",
@@ -96,12 +99,3 @@ def train_fraud_model(dataset: str, target: str):
     )
 
     return result.model_version
-
-
-# if __name__ == "__main__":
-#     dataset_id = sys.argv[1] if len(sys.argv) > 1 else "fraud_training_data"
-#     target = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_TARGET
-#     print(
-#         "trained fraud model version: "
-#         f"{train_fraud_model.remote(dataset=dataset_id, target=target)}"
-#     )
