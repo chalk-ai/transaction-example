@@ -51,7 +51,9 @@ def train_fraud_model(dataset: str, target: str) -> None:
     client = ChalkClient()
 
     # Every column except the target is a feature.
-    df = client.get_dataset(id=dataset).to_pandas(output_id=False, output_ts=False)
+    df = client.get_dataset(revision_id=dataset).to_pandas(
+        output_id=False, output_ts=False
+    )
     feature_columns = [
         col
         for col in df.columns
@@ -61,6 +63,7 @@ def train_fraud_model(dataset: str, target: str) -> None:
 
     X = df[feature_columns].to_numpy(dtype="float32")
     y = df[target].astype(int).to_numpy()
+    assert set(y) <= {0, 1}, f"{target} is not a binary 0/1 label — got {set(y)}"
 
     # Train / test split so we can report a held-out metric.
     X_train, X_test, y_train, y_test = train_test_split(
