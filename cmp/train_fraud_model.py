@@ -31,6 +31,7 @@ DEFAULT_TARGET = "transaction.is_fraud"
 )
 def train_fraud_model(dataset: str, target: str) -> None:
     import pandas as pd
+    import os
     import xgboost as xgb
     from sklearn.metrics import roc_auc_score
     from sklearn.model_selection import train_test_split
@@ -94,11 +95,4 @@ def train_fraud_model(dataset: str, target: str) -> None:
             "auc": auc,
         },
     )
-    client.deploy_model_version_to_scaling_group(
-        name=f"fraud-detection-{result.model_version}",
-        model_name="fraud_detection_model",
-        model_version=result.model_version,
-        resources=ScalingGroupResourceRequest(cpu="1", memory="2Gi"),
-    )
-
     return result.model_version
