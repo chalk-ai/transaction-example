@@ -90,7 +90,7 @@ def train_fraud_model(dataset: str, target: str) -> None:
         model=FraudModel(model=clf),
         input_schema={col: float for col in feature_columns},
         output_schema={"fraud_score": float},
-        dependencies=["xgboost", "pandas", "chalkdf"],
+        dependencies=["xgboost", "pandas", "chalkdf", "scikit-learn"],
         metadata={
             "auc": auc,
         },
