@@ -3,13 +3,9 @@
 # requires-python = ">=3.12,<3.14"
 # dependencies = ["chalkcompute>=2.1.1"]
 # ///
-import sys
-
 import chalkcompute
 
-# Train on any dataset shape: every column except `target` is a numeric feature.
 DEFAULT_TARGET = "transaction.is_fraud"
-
 
 @chalkcompute.function(
     secrets=[
@@ -17,7 +13,8 @@ DEFAULT_TARGET = "transaction.is_fraud"
         chalkcompute.Secret.from_env("CHALK_CLIENT_SECRET"),
         chalkcompute.Secret.from_env("CHALK_ENVIRONMENT_ID"),
     ],
-    image=chalkcompute.Image.debian_slim(python_version="3.12").pip_install(
+    image=chalkcompute.Image.debian_slim(python_version="3.12")
+    .pip_install(
         [
             "chalkpy>=2.130.5",
             "openai",
@@ -27,27 +24,14 @@ DEFAULT_TARGET = "transaction.is_fraud"
             "pandas",
             "polars",
         ]
-    ),
+    )
 )
 def train_fraud_model(dataset: str, target: str) -> None:
-    import pandas as pd
-    import os
     import xgboost as xgb
     from sklearn.metrics import roc_auc_score
     from sklearn.model_selection import train_test_split
 
     from chalk.client import ChalkClient
-    from chalk.ml import model_handler
-    from chalk.scalinggroup import ScalingGroupResourceRequest
-
-    @model_handler
-    class FraudModel:
-        def predict(self, df):
-            # Served as a raw xgboost.Booster, so use the Booster API (no
-            # predict_proba). Callers must pass features in the training order.
-            X = df.to_pandas().to_numpy(dtype="float32")
-            scores = self.model.predict(xgb.DMatrix(X))
-            return pd.DataFrame({"fraud_score": scores})
 
     client = ChalkClient()
 
@@ -87,12 +71,13 @@ def train_fraud_model(dataset: str, target: str) -> None:
     # Register the model and roll it out so the online resolver can serve it.
     result = client.register_model_version(
         name="fraud_detection_model",
-        model=FraudModel(model=clf),
+        model=clf,
         input_schema={col: float for col in feature_columns},
         output_schema={"fraud_score": float},
-        dependencies=["xgboost", "pandas", "chalkdf", "scikit-learn"],
+        dependencies=["xgboost", "pandas", "chalkdf", "scikit-learn", "chalkcompute"],
         metadata={
             "auc": auc,
         },
     )
+
     return result.model_version
