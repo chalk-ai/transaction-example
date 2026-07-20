@@ -68,10 +68,22 @@ def train_fraud_model(dataset: str, target: str) -> None:
     auc = roc_auc_score(y_test, clf.predict_proba(X_test)[:, 1])
     print(f"held-out AUC: {auc:.4f}")
 
-    # Register the model and roll it out so the online resolver can serve it.
+    import pickle
+    import tempfile
+    import os
+
+    model_path = os.path.join(tempfile.mkdtemp(), "fraud_model.pkl")
+    with open(model_path, "wb") as f:
+        pickle.dump(clf, f)
+    print(f"Model saved to {model_path}")
+
+    from chalk.ml import ModelEncoding, ModelType
+
     result = client.register_model_version(
         name="fraud_detection_model",
-        model=clf,
+        model_type=ModelType.XGBOOST,
+        model_encoding=ModelEncoding.PICKLE,
+        model_paths=[model_path],
         input_schema={col: float for col in feature_columns},
         output_schema={"fraud_score": float},
         dependencies=["xgboost", "pandas", "chalkdf", "scikit-learn", "chalkcompute"],
