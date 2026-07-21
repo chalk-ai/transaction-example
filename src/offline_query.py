@@ -11,7 +11,6 @@ dataset = client.offline_query(
     dataset_name='fraud-model',
     recompute_features=True,
     run_asynchronously=True,
-    branch="sl-test"
 )
 
 df = dataset.to_pandas()
