@@ -3,6 +3,6 @@
 select
     id,
     email,
-    dob,
-    name
-from usrs
+    name,
+    is_fraud
+from users_demo
