@@ -5,5 +5,12 @@ select
     amount,
     user_id,
     at,
-    description as memo
-from txns
+    memo,
+    direction,
+    transaction_type,
+    category,
+    merchant,
+    counterparty,
+    status,
+    return_code
+from txns_demo

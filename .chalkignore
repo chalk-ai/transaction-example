@@ -47,3 +47,4 @@ CLAUDE.md
 AGENTS.md
 README.md
 notebooks
+src/offline_query.py
