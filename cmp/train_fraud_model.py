@@ -5,7 +5,7 @@
 # ///
 import chalkcompute
 
-DEFAULT_TARGET = "transaction.is_fraud"
+DEFAULT_TARGET = "user.is_fraud"
 
 @chalkcompute.function(
     secrets=[
@@ -42,7 +42,7 @@ def train_fraud_model(dataset: str, target: str) -> None:
     feature_columns = [
         col
         for col in df.columns
-        if col not in {target, "transaction.id", "transaction.user.id"}
+        if col not in {target, "user.id"}
     ]
     print(f"target: {target}; {len(feature_columns)} features: {feature_columns}")
 
@@ -88,7 +88,7 @@ def train_fraud_model(dataset: str, target: str) -> None:
         output_schema={"fraud_score": float},
         dependencies=["xgboost", "pandas", "chalkdf", "scikit-learn", "chalkcompute"],
         metadata={
-            "auc": auc,
+            "auc": f"{auc:.4f}",
         },
     )
 
