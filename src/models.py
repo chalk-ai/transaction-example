@@ -151,42 +151,17 @@ class CreditReport:
     total_payment_amount: float = _.tradelines[_.payment_amount].sum()
 
 
-@features
-class User:
-    # Features pulled from Postgres for the user
-    id: int
+@features(part_of="User")
+class Profile:
     email: str
     name: str
     dob: date = feature(default=date(1970, 1, 1))
 
 
-    # NOTE: the features below are illustrative — they reference model-catalog
-    # entries and inputs that don't exist in this environment, so they are
-    # commented out to keep `chalk apply` deployable.
-
-    # calling a curated model through chalk
-    # email_embedding: Vector[1024] = F.catalog_call("model.qwen3", _.email)
-
-    # calling a custom model through chalk
-    # model_score: float = F.catalog_call(
-    #     "model.my-custom-model", _.name_email_match_score
-    # )
-
-    # calling agents through chalk
-    # refund: bool = F.catalog_call(
-    #     "model.investigate-refund", _.user_id, _.refund_reason
-    # )
-
-    # calling llms through chalk router
-    # chalk_router_result: str = (
-    #     F.openai_complete(prompt=_.x, model="anthropic/claude-sonnet-4-5-20250929")
-    #     .with_rate_limit(rate=3, key="key")
-    #     .completion
-    # )
-
-    # calling sagemaker models
-    # model_score_2: bool = F.sagemaker_predict(...)
-
+@features
+class User:
+    # Features pulled from Postgres for the user
+    id: int
     email_username: str
     domain_name: str
 
@@ -268,6 +243,29 @@ class User:
     # Other accounts connected to this user in the Neptune identity-linkage
     # graph (shared device, IP, email domain, or payment instrument).
     linked_account_ids: list[int] | None
+
+    # calling a curated model through chalk
+    # email_embedding: Vector[1024] = F.catalog_call("model.qwen3", _.email)
+
+    # calling a custom model through chalk
+    # model_score: float = F.catalog_call(
+    #     "model.my-custom-model", _.name_email_match_score
+    # )
+
+    # calling agents through chalk
+    # refund: bool = F.catalog_call(
+    #     "model.investigate-refund", _.user_id, _.refund_reason
+    # )
+
+    # calling llms through chalk router
+    # chalk_router_result: str = (
+    #     F.openai_complete(prompt=_.x, model="anthropic/claude-sonnet-4-5-20250929")
+    #     .with_rate_limit(rate=3, key="key")
+    #     .completion
+    # )
+
+    # calling sagemaker models
+    # model_score_2: bool = F.sagemaker_predict(...)
 
 
 NamedQuery(

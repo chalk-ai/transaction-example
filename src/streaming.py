@@ -1,6 +1,9 @@
 from datetime import datetime
 
-from chalk import Features, stream
+import pyarrow as pa
+from chalk import functions as F
+from chalk.features import _
+from chalk.features.resolver import make_stream_resolver
 from chalk.streams import KafkaSource
 from pydantic import BaseModel
 
@@ -16,18 +19,14 @@ class TransactionMessage(BaseModel):
     at: datetime
 
 
-@stream(source=transactions_topic)
-def process_stream_message(
-    msg: TransactionMessage,
-) -> Features[
-    Transaction.id,
-    Transaction.amount,
-    Transaction.at,
-    Transaction.memo,
-]:
-    return Transaction(
-        id=msg.id,
-        amount=msg.amount,
-        at=msg.at,
-        memo=msg.memo,
-    )
+process_stream_message = make_stream_resolver(
+    name="process_stream_message",
+    source=transactions_topic,
+    message_type=TransactionMessage,
+    output_features={
+        Transaction.id: F.cast(_.id, pa.int64()),
+        Transaction.amount: _.amount,
+        Transaction.at: _.at,
+        Transaction.memo: _.memo,
+    },
+)
