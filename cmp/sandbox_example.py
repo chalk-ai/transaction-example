@@ -6,16 +6,12 @@
 from chalkcompute import Sandbox, Image, Volume
 
 if __name__ == "__main__":
-    # Volume("code").put_file("hello.py", "print('hello world!')").put_file(...)
+    # v = Volume("code").put_file("hello.py", "print('hello world!')")
     sandbox = Sandbox(
-        cpu="2",
-        memory="4Gi",
-        image=(
-            Image
-              .debian_slim(python_version="3.13")
-              .run_commands("pip install claude")
-        ),
+        cpu="1",
+        memory="2Gi",
+        image=Image.debian_slim(python_version="3.13"),
         # volumes=[("code", "/code")],
     ).run()
     print(sandbox.exec("echo", "hello!").stdout_text)
-    sandbox.terminate()
+    # sandbox.terminate()
