@@ -1,0 +1,10 @@
+{
+  "auto_install_extensions": {
+    "chalk-lsp": true
+  },
+  "languages": {
+    "Python": {
+      "language_servers": ["chalk-lsp"]
+    }
+  }
+}

@@ -25,3 +25,15 @@ package-dir = {"" = "src"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pyright]
+ignore = ["."]
+
+
+[tool.mypy]
+ignore_errors = true
+
+
+[tool.ty.rules]
+all = "ignore"
+

@@ -181,12 +181,24 @@ class User:
     credit_report_id: CreditReport.id
     credit_report: CreditReport
 
-
     # The transactions, linked by the User.id type on the Transaction.user_id field
     transactions: DataFrame[Transaction]
 
-    total_spend: float = _.transactions[_.amount].sum()
+    # The number of transfers made by the user in the
+    # last 1, 7, and 30 days.
+    count_withdrawals: Windowed[int] = windowed(
+        "1d",
+        "7d",
+        "30d",
+        "365d",
+        expression=_.transactions[
+            _.at >= _.chalk_window,
+            _.amount < 0,
+        ].count(),
+        # materialization={"bucket_duration": "1h"},
+    )
 
+    total_spend: float = _.transactions[_.amount].sum()
 
     txn_count: int = _.transactions.count()
     total_debit_amount: float = _.transactions[_.direction == "debit", _.amount].sum()
@@ -204,7 +216,6 @@ class User:
         _.transaction_type == "P2P", _.direction == "credit"
     ].count()
 
-
     small_txn_ratio: float = F.if_then_else(
         _.txn_count > 0, _.small_txn_count / _.txn_count, 0.0
     )
@@ -218,20 +229,6 @@ class User:
         _.total_credit_amount > 0.0,
         _.total_debit_amount / _.total_credit_amount,
         _.total_debit_amount,
-    )
-
-    # The number of transfers made by the user in the
-    # last 1, 7, and 30 days.
-    count_withdrawals: Windowed[int] = windowed(
-        "1d",
-        "7d",
-        "30d",
-        "365d",
-        expression=_.transactions[
-            _.at >= _.chalk_window,
-            _.amount < 0,
-        ].count(),
-        # materialization={"bucket_duration": "1h"},
     )
 
     is_fraud: bool

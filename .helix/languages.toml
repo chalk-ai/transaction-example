@@ -1,0 +1,30 @@
+[language-server.chalk-lsp]
+command = "chalk-lsp"
+args = ["lsp"]
+required-root-patterns = ["chalk.yml", "chalk.yaml"]
+
+[[language]]
+name = "python"
+roots = ["chalk.yml", "chalk.yaml"]
+language-servers = ["chalk-lsp"]
+
+[[language]]
+name = "chalk-sql"
+scope = "source.sql"
+grammar = "sql"
+language-id = "sql"
+file-types = [{ glob = "*.chalk.sql" }]
+roots = ["chalk.yml", "chalk.yaml"]
+comment-token = "--"
+language-servers = ["chalk-lsp"]
+
+[[language]]
+name = "chalk-yaml"
+scope = "source.yaml"
+grammar = "yaml"
+language-id = "yaml"
+file-types = [{ glob = "chalk.yml" }, { glob = "chalk.yaml" }]
+roots = ["chalk.yml", "chalk.yaml"]
+comment-token = "#"
+indent = { tab-width = 2, unit = "  " }
+language-servers = ["chalk-lsp"]
