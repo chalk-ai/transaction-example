@@ -5,6 +5,7 @@ select
     amount,
     user_id,
     at,
+    at as created_at,
     memo,
     direction,
     transaction_type,

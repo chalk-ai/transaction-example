@@ -87,6 +87,12 @@ def get_credit_report(
 
 
 @online
+def get_credit_score(raw: CreditReport.raw) -> CreditReport.score:
+    """Parse the bureau score out of the raw credit report."""
+    return json.loads(raw)["Score"]
+
+
+@online
 def get_tradelines(
     raw: CreditReport.raw,
 ) -> CreditReport.tradelines[

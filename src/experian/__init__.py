@@ -20,6 +20,7 @@ class ExperianClient:
                 User.credit_report.raw: [
                     json.dumps(
                         {
+                            "Score": 712,
                             "Tradelines": [
                                 {
                                     "Id": 1,
