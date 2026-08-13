@@ -43,6 +43,10 @@ chalkcompute_vllm_server.py
 cmp
 cmp/chalkcompute_agent_demo_ui.py
 
+# Resolver-coverage audits — run directly, not deployed via chalk apply
+audit_resolvers.py
+audit_live.py
+
 CLAUDE.md
 AGENTS.md
 README.md

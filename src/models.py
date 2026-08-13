@@ -32,15 +32,17 @@ class Transaction:
     user_id: "User.id"
     user: "User"
 
-    is_fraud: bool
-
     # The time at which the transaction was created for temporal consistency
     at: FeatureTime
+
+    # User this for expressions, ie:
+    # `User.transactions[F.hour_of_day(_.at) < 6]`, where `at` is a real column.)
+    created_at: datetime
 
     # Derived fraud signals
     is_small: bool = _.amount < 5.0
     is_return: bool = _.status == "RETURNED"
-    is_night: bool = F.hour_of_day(_.at) < 6
+    is_night: bool = F.hour_of_day(_.created_at) < 6
     memo_length: int = F.length(_.memo)
 
 

@@ -1,6 +1,19 @@
 
 # Chalk Development Guidelines
 
+## Project Skills — READ THESE FIRST
+
+| Skill | Read it when you are… |
+|---|---|
+| `chalk-notebooks` | creating, running, or debugging a Chalk notebook — `chalk notebook create` / `cell add` / `cell edit` / `run`, or working in a dashboard notebook; running queries in a cell, `client.load_features()`, plotting, `uv` installs, training a model in the kernel |
+| `writing-online-resolvers` | writing, refactoring, or debugging `@online` Python resolvers — input/output signatures, `Now`, dotted relationship paths, Python resolver vs. expression, null handling, tests |
+| `writing-static-chalkdf` | writing `@online(static=True)` resolvers with `chalkdf` — porting pandas/numpy logic, exploding has-many, window functions, `join_asof`, sharding, `chalk apply` serialization errors |
+| `chalk-streaming` | writing, testing, or tuning stream resolvers — Kafka/Kinesis/PubSub, `make_stream_resolver`, parse expressions, sinks, dedup, late arrival, streaming worker config |
+| `chalk-resolver-acceleration` | optimizing feature-pipeline latency — whether to accelerate a Python resolver, migrate it to inline `F.*` / `_.` expressions, or restructure code that will never statically accelerate |
+| `migrating-features-to-chalk` | porting existing features into Chalk — dbt models, Airflow/Prefect pandas jobs, Spark jobs, Feast/Tecton; entity modeling, resolver choice, train-serve parity |
+
+**"Use your skills" in a prompt means these**, not just the harness-provided ones.
+
 ## Chalk Documentation
 
 For complete Chalk documentation optimized for AI assistants:
