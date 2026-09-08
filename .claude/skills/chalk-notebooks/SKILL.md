@@ -113,9 +113,50 @@ Once a feature is working the way you want, move its definition into your actual
 
 If you use a feature you just defined live as output of an `offline_query`, pass `recompute_features=True`. Without it, the query samples already-computed values from the online/offline store rather than running resolvers fresh - and a feature you just defined live has no such stored history. Usually it's just better to recompute.
 
-## SQL cells' result-variable binding is dashboard-only
+## Run exactly one offline query per cell - never in a loop
 
-In the dashboard, a SQL cell can be configured with a "result variable" name, which binds its query result to a Python variable that later Python cells can reference directly as a chalkdf-style dataframe (`.to_pandas()`, `.with_columns({...})`, filtering with `_`, etc.) without re-running the query. As of this writing, `chalk notebook cell add`/`cell edit` has no flag to set this binding - it's dashboard-only configuration. If you're driving a notebook from the CLI and need a SQL query's rows in a later cell, read the SQL cell's output back explicitly (e.g. `chalk notebook results <notebook-id> <cell>`) rather than assuming a bound variable exists.
+An offline query is a heavyweight, asynchronous job: it creates a dataset revision, runs resolvers across every row, and takes seconds to minutes. Give each one its own cell, with the resulting `Dataset` as the cell's last expression.
+
+Never put `client.offline_query(...)` inside a `for` loop. A loop serializes jobs that each cost a revision, turns one slow cell into an unbounded one, makes the cell's rendered output meaningless (only the last iteration survives as the return value), and gives you nothing to click through to in the dashboard per-iteration. It also tempts you into suppressing the progress panels each iteration prints - which throws away the tracebacks you need when one of them fails.
+
+```python
+# CORRECT - one query, one cell, dataset returned bare
+ds = client.offline_query(
+    input={User.id: user_ids},
+    output=FEATURES,
+    dataset_name="fraud_investigation",
+    recompute_features=True,
+)
+ds
+
+# WRONG - N revisions, serialized, output clobbered each pass
+for feats in feature_groups:
+    d = client.offline_query(input={User.id: user_ids}, output=feats, recompute_features=True)
+    d.revisions[-1].wait_for_completion()
+```
+
+If you're trying to work out which of several features breaks a query, add one cell per candidate rather than looping - each cell then has its own readable output, its own dashboard link, and can be re-run on its own. Better still, query the whole feature set once and read the failure message: it names the resolver and primary key that failed.
+
+Relatedly, don't wrap Chalk calls in `contextlib.redirect_stdout(...)` to quiet their progress panels. It suppresses the error text at exactly the moment you need it. If a cell's output is too long for your terminal, raise `--max-output-bytes` or page through it with `chalk notebook output rows <notebook-id> <output-id> --offset N --limit M`.
+
+## Pipe a SQL cell into a Python cell with `--result-variable`
+
+A SQL cell can bind its result to a Python variable that later Python cells reference directly as a chalkdf-style dataframe (`.to_pandas()`, `.with_columns({...})`, filtering with `_`, etc.) without re-running the query. Set it from the CLI with `--result-variable`, and pair it with `--datasource` to hit a named source instead of Chalk SQL:
+
+```bash
+chalk notebook cell add <notebook-id> --kind sql --datasource postgres \
+  --result-variable user_rows --no-cache \
+  --source 'select id, is_fraud from users_demo order by id' --run
+```
+
+```python
+# a later Python cell - user_rows is already bound, no re-query needed
+user_ids = user_rows.to_pandas()["id"].tolist()
+```
+
+This is the cleanest way to ground a query in real primary keys: pull the ids in SQL, then feed them to `client.query`/`client.offline_query` in Python. Inventing ids with `range()` silently produces keys that join to no row, which surfaces as a misleading "required argument ... could not be computed" error naming an unrelated downstream resolver.
+
+Use `--no-cache` (or `--max-staleness=0`) when the underlying table may have changed and you need fresh rows.
 
 ## Charts: always use Altair
 
